@@ -70,8 +70,7 @@ case "$TERM" in
     xterm-color) color_prompt=yes;;
 esac
 
-PATH=/sbin:/usr/sbin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games
-
+PATH=/bin:/usr/bin:/usr/local/bin:/sbin:/usr/sbin:/usr/games:/usr/local/games
 
 # Fortune and cowsay
 if [ -x /usr/games/cowsay -a -x /usr/games/fortune ]; then
