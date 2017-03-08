@@ -30,7 +30,7 @@
 #  [ -z "$test" ] && /etc/init.d/myfirewall clear ; done
 #---------------------------------------------------------------
 
-PATH=/bin:/usr/bin:/usr/local/bin/sbin:/usr/sbin:/usr/games:/usr/local/games
+PATH=/bin:/usr/bin:/usr/local/bin:/sbin:/usr/sbin:/usr/games:/usr/local/games
 
 # Services that the system will offer to the network
 TCP_SERVICES="22" # SSH only
