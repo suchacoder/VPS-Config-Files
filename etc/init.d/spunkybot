@@ -32,7 +32,7 @@ PIDFILE=$RUNDIR/$NAME.pid
 # Get LSB functions
 . /lib/lsb/init-functions
 
-sleep 60
+sleep 10
 
 # See if the daemon is present
 if [ -e "$DAEMON" ]
