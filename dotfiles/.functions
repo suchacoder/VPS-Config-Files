@@ -5,7 +5,7 @@ man() {
      LESS_TERMCAP_md=$'\E[01;31m'\
      LESS_TERMCAP_me=$'\E[0m'\
      LESS_TERMCAP_se=$'\E[0m'\
-     LESS_TERMCAP_so=$'\E[01;44;33m'\
+     LESS_TERMCAP_so=$'\E[01;40;33m'\
      LESS_TERMCAP_ue=$'\E[0m'\
      LESS_TERMCAP_us=$'\E[01;36m'\
      man "$@"
@@ -218,17 +218,4 @@ function n() {
 
 function tre() {
 	tree -aC -I '.git|node_modules|bower_components' --dirsfirst "$@" | less -FRNX;
-}
-
-
-# tmux agressive resize function
-
-function rsc() {
-  CLIENTID=$1.`date +%S`
-  tmux new-session -d -t $1 -s $CLIENTID \; set-option destroy-unattached \; attach-session -t $CLIENTID
-}
-
-function mksc() {
-  tmux new-session -d -s $1
-  rsc $1
 }
