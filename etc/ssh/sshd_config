@@ -9,14 +9,14 @@ ListenAddress 0.0.0.0
 Protocol 2
 # HostKeys for protocol version 2
 HostKey /etc/ssh/ssh_host_rsa_key
-HostKey /etc/ssh/ssh_host_dsa_key
-HostKey /etc/ssh/ssh_host_ecdsa_key
+#HostKey /etc/ssh/ssh_host_dsa_key
+#HostKey /etc/ssh/ssh_host_ecdsa_key
 #Privilege Separation is turned on for security
 UsePrivilegeSeparation yes
 
 # Lifetime and size of ephemeral version 1 server key
 KeyRegenerationInterval 3600
-ServerKeyBits 768
+ServerKeyBits 1024
 
 # Logging
 SyslogFacility AUTH
@@ -68,7 +68,7 @@ TCPKeepAlive yes
 #UseLogin no
 
 #MaxStartups 10:30:60
-Banner /etc/issue.net
+#Banner /etc/issue.net
 
 # Allow client to pass locale environment variables
 AcceptEnv LANG LC_*
@@ -91,4 +91,3 @@ AllowUsers user ref user@host
 
 # Allow only certain group members to have access via ssh to this machine. AllowGroups and AllowUsers have equivalent directives for denying access to a machine. Not surprisingly they are called "DenyUsers" and "DenyGroups" 
 #AllowGroups wheel admin
-
