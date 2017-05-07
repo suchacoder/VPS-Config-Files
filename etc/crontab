@@ -1,3 +1,14 @@
-* 3 * * * /sbin/shutdown -r +5  # root's cron
+### root's cron
 
-* 3 * * * /bin/echo " " > /home/chuck/urban/ts/q3ut4/games.log  # chuck's cron
+* 09 * * * /sbin/shutdown -r +5
+
+
+### chuck's cron 
+
+* 08 * * * env > ~/cronenv
+
+05 08 * * * env - `cat ~/cronenv` /bin/sh
+
+* 09 * * * /bin/echo " " > /home/chuck/urban/ts/q3ut4/games.log
+
+* 3 * * * /bin/echo " " > /home/chuck/urban/ts/q3ut4/games.log
