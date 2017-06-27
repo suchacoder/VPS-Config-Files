@@ -1,0 +1,13 @@
+# Automatically generated
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static  # static ip
+        address 155.94.222.28  # public ip
+        netmask 255.255.255.0
+        broadcast 155.94.222.255
+        network 155.94.222.0
+        gateway  155.94.222.1
+
+pre-up iptables-restore < /etc/iptables/rules.v4  # iptables autoloader
