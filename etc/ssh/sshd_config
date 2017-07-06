@@ -86,8 +86,14 @@ Subsystem sftp /usr/lib/openssh/sftp-server
 # and ChallengeResponseAuthentication to 'no'.
 UsePAM yes
 
+# Add this to specify auth methods
+AuthenticationMethods publickey,keyboard-interactive
+
 # Allowed users
 AllowUsers user ref user@host
+
+# Allowed groups
+AllowGroups group_1 group_2 group_3
 
 # Allow only certain group members to have access via ssh to this machine. AllowGroups and AllowUsers have equivalent directives for denying access to a machine. Not surprisingly they are called "DenyUsers" and "DenyGroups" 
 #AllowGroups wheel admin
