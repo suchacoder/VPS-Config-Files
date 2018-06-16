@@ -10,3 +10,5 @@
 05 08 * * * env - `cat ~/cronenv` /bin/sh
 
 * 09 * * * /bin/echo " " > /home/$USER/urban/ts/q3ut4/games.log
+
+* 09 * * * /bin/echo " " > /home/$USER/urban/pcw/q3ut4/games.log
