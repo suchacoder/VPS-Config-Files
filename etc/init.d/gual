@@ -16,7 +16,7 @@
 # - This configuration applies to all network interfaces
 #   if you want to restrict this to only a given interface use
 #   '-i INTERFACE' in the iptables calls.
-# - Remote access for TCP/UDP services is granted to any host, 
+# - Remote access for TCP/UDP services is granted to any host,
 #   you probably will want to restrict this using '--source'.
 #
 # chkconfig: 2345 9 91
