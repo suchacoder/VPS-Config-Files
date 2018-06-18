@@ -1,0 +1,20 @@
+# Installation:
+# Modify 'User' and 'WorkingDirectory' to suit where you installed urt
+# Afterwards: sudo systemctl daemon-reload
+#             sudo systemctl enable pcw.service
+#             sudo systemctl start pcw.service
+
+[Unit]
+Description=UrbanTerror PCW
+After=network.target
+
+[Service]
+User=chuck
+WorkingDirectory=/home/chuck/
+ExecStart=/home/chuck/startpcw
+StandardOutput=null
+Type=simple
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
