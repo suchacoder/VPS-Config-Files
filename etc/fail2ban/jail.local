@@ -1,0 +1,6 @@
+[sshd]
+enabled = true
+banaction = iptables-allports
+maxretry = 3
+findtime = 43200
+bantime  = 60
