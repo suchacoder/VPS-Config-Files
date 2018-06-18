@@ -1,51 +1,31 @@
 #!/bin/sh
 # Jim McKibben
-# 2015-01-11
-# Version 2.6.2
-# Iptables Firewall configuration script
-# Allows HTTP, HTTPS, SSH, SMTP
 # SSH Port easy customization
 # Allows Local Loopback
-# Allows specific ICMP
 # Allows DNS Query and Response
 # Blocks bad source
 # Blocks non local Loopback
 # DOS Protection and reporting
 # DOS SYN Flood
 # DOS ICMP
-# Report logged HTTPs usage - HTTPs IPv6 disabled
 # DOS SSH
 # Logging
 # Admin IP / Monitoring Section
-# IPv6 support
 # IPSET Blocklist Support
 # Fixed SRC/DST Admin
 # Allowed blocklist response
 
 IPT=/sbin/iptables
 IP6T=/sbin/ip6tables
-ADMIN="0.0.0.0"
-ADMINSUBNET01="0.0.0.0/32"
+ADMIN="181.0.0.0/8"
 SSHPORT="4455"
 DNS_SERVER="8.8.4.4 8.8.8.8"
 PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
+URTPORTS="1337,1338,1339"
 
-echo "Enabling Firewall"
+echo "Enabling Firewall..."
 
 # IPv4 rules
-
-# Specialty IPs
-# These IPs will be allowed to ping
-# They won't have to worry about DDoS rulesets
-#$IPT -N ADMIN_IP
-#$IPT -A ADMIN_IP -p tcp -m multiport --sport $SSHPORT,25,80,443,10050,10051 -j ACCEPT
-#$IPT -A ADMIN_IP -p tcp -m multiport --dport $SSHPORT,25,80,443,10050,10051 -j ACCEPT
-#$IPT -A ADMIN_IP -i eth0 -p icmp --icmp-type destination-unreachable -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-#$IPT -A ADMIN_IP -i eth0 -p icmp --icmp-type time-exceeded -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-#$IPT -A ADMIN_IP -i eth0 -p icmp --icmp-type echo-reply -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-#$IPT -A ADMIN_IP -i eth0 -p icmp --icmp-type echo-request -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-#$IPT -A ADMIN_IP -i eth0 -p icmp -m limit --limit 1/s --limit-burst 1 -j LOG --log-prefix "iptables: PING-DROP: "
-#$IPT -A ADMIN_IP -i eth0 -p icmp -j DROP
 
 # Loopback rules
 $IPT -A INPUT -i lo -j ACCEPT
@@ -101,12 +81,10 @@ $IPT -A SYN_FLOOD -j DROP
 # Admin IPs Version 2
 $IPT -A INPUT -s $ADMIN -j ACCEPT
 $IPT -A OUTPUT -d $ADMIN -j ACCEPT
-$IPT -A INPUT -s $ADMINSUBNET01 -j ACCEPT
-$IPT -A OUTPUT -d $ADMINSUBNET01 -j ACCEPT
 
 # Allow SSH
-$IPT -A INPUT -i eth0 -p tcp -m tcp --dport 4455 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-$IPT -A OUTPUT -o eth0 -p tcp -m tcp --sport 4455 -m conntrack --ctstate ESTABLISHED -j ACCEPT
+$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT
+$IPT -A OUTPUT -o eth0 -p tcp -m tcp --sport $SSHPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 # Enable IPSET blacklists - logs blocked attempts and responds with port unreachable
 ipset restore < /etc/ipset-blacklist/ip-blacklist.restore
@@ -120,9 +98,8 @@ $IPT -A OUTPUT -m set --match-set blacklist dst -j LOG --log-prefix "IP Blacklis
 $IPT -A OUTPUT -m set --match-set blacklist dst -j REJECT --reject-with icmp-port-unreachable
 
 # Allow UrT
-$IPT -A INPUT -i eth0 -p udp -m multiport --dport 1337,1338,1339 -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
-$IPT -A OUTPUT -o eth0 -p udp -m multiport --sport 1337,1338,1339 -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
-$IPT -A OUTPUT -o eth0 -p udp -m multiport --sport 1337,1338,1339 --dport 27900 -j ACCEPT
+$IPT -A INPUT -i eth0 -p udp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
+$IPT -A OUTPUT -o eth0 -p udp -m multiport --sport $URTPORTS -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
 
 # Block
 # drop reserved addresses incoming (these are reserved addresses)
@@ -181,38 +158,40 @@ $IPT -A OUTPUT -o eth0 -d 197.0.0.0/8 -j DUMP
 $IPT -A OUTPUT -o eth0 -d 224.0.0.0/3 -j DUMP
 $IPT -A OUTPUT -o eth0 -d 240.0.0.0/8 -j DUMP
 
-# Allow certain inbound ICMP types (ping, traceroute..)
-$IPT -A INPUT -i eth0 -p icmp --icmp-type destination-unreachable -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-$IPT -A INPUT -i eth0 -p icmp --icmp-type time-exceeded -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-$IPT -A INPUT -i eth0 -p icmp --icmp-type echo-reply -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-$IPT -A INPUT -i eth0 -p icmp --icmp-type echo-request -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-$IPT -A INPUT -i eth0 -p icmp -m limit --limit 1/s --limit-burst 1 -j LOG --log-prefix "iptables: PING-DROP: "
-$IPT -A INPUT -i eth0 -p icmp -j DROP
-
 # Drop all packets to port 111 except those from localhost
 $IPT -A INPUT ! -s 127.0.0.0/8 -p tcp --dport 111 -j REJECT --reject-with tcp-reset
 
 # kill off identd quick
 $IPT -A INPUT -i eth0 -p tcp --dport 113 -j REJECT --reject-with tcp-reset
 
-# Allow all established, related in
-#$IPT -A INPUT -i eth0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-
-# Allows Inbound NEW DOS SSH Attack prevention (only 4 attempts by an IP every 3 minutes, drop the rest)
+# Allows Inbound NEW DOS SSH Attack prevention (only 3 attempts by an IP every 3 minutes, drop the rest)
 # The ACCEPT at the end is necessary or, it wouldn't accept any connection
 $IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --set --name DEFAULT --rsource
-$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 4 --name DEFAULT --rsource -j LOG -m limit --limit 20/m --log-prefix "iptables: SSH Attempt on port $SSHPORT : "
-$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 4 --name DEFAULT --rsource -j REJECT
+$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j LOG -m limit --limit 20/m --log-prefix "iptables: SSH Attempt on port $SSHPORT : "
+$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j REJECT
 $IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT
-
-# Inbound ESTABLISHED SSH (out is in Multi-out)
-$IPT -A INPUT -i eth0 -p tcp --dport $SSHPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 # Multi-out for inbound SSH
 $IPT -A OUTPUT -o eth0 -p tcp --sport $SSHPORT -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
 
+# Inbound ESTABLISHED SSH
+$IPT -A INPUT -i eth0 -p tcp --dport $SSHPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT
+
 # Outbound SSH
-#$IPT -A OUTPUT -o eth0 -p tcp --dport $SSHPORT  -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+$IPT -A OUTPUT -o eth0 -p tcp --dport $SSHPORT  -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+
+# Don't log route packets coming from routers - too much logging
+$IPT -A INPUT -i eth0 -p udp --dport 520 -j REJECT
+
+# Don't log smb/windows sharing packets - too much logging
+$IPT -A INPUT -i eth0 -p tcp --dport 137:139 -j REJECT
+$IPT -A INPUT -i eth0 -p udp --dport 137:139 -j REJECT
+
+# All policies set to DROP
+$IPT --policy INPUT DROP
+$IPT --policy OUTPUT DROP
+$IPT --policy FORWARD DROP
+#$IPT --policy ADMIN_IP DROP
 
 # DOS HTTP Attack prevention
 # Need re-evaluation, the current rates do not allow for WordPress image upload features
@@ -223,13 +202,6 @@ $IPT -A OUTPUT -o eth0 -p tcp --sport $SSHPORT -m conntrack --ctstate NEW,ESTABL
 #$IPT -A INPUT -i eth0 -p tcp --dport 443 -m limit --limit 45/minute --limit-burst 300 -j ACCEPT
 #$IPT -A INPUT -i eth0 -p tcp --dport 443 -m hashlimit --hashlimit-upto 80/min --hashlimit-burst 800 --hashlimit-mode srcip --hashlimit-name https -j ACCEPT
 #$IPT -A INPUT -i eth0 -p tcp --dport 443 -j ACCEPT
-
-# Allow Ping from Outside to Inside
-$IPT -A OUTPUT -p icmp --icmp-type echo-reply -j ACCEPT
-
-# Allow outbound DNS
-$IPT -A INPUT -i eth0 -p udp --dport 1024:65535 --sport 53 -j ACCEPT
-$IPT -A OUTPUT -p udp --dport 53 --sport 1024:65535 -j ACCEPT
 
 # Outbound HTTP, and HTTPS
 #$IPT -A OUTPUT -o eth0 -p tcp --dport 80 --sport 1024:65535 -j ACCEPT
@@ -258,165 +230,4 @@ $IPT -A OUTPUT -p udp --dport 53 --sport 1024:65535 -j ACCEPT
 # Allow all related
 #$IPT -A OUTPUT -o eth0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
-# Don't log route packets coming from routers - too much logging
-$IPT -A INPUT -i eth0 -p udp --dport 520 -j REJECT
-
-# Don't log smb/windows sharing packets - too much logging
-$IPT -A INPUT -i eth0 -p tcp --dport 137:139 -j REJECT
-$IPT -A INPUT -i eth0 -p udp --dport 137:139 -j REJECT
-
-# All policies set to DROP
-$IPT --policy INPUT DROP
-$IPT --policy OUTPUT DROP
-$IPT --policy FORWARD DROP
-#$IPT --policy ADMIN_IP DROP
-
-# IPv6 rules
-
-# Specialty IPs
-# These IPs will be allowed to ping
-# They won't have to worry about DDoS rulesets
-#$IP6T -N ADMIN_IP
-#$IP6T -A ADMIN_IP -p tcp -m multiport --sport $SSHPORT,25,80,443,10050,10051 -j ACCEPT
-#$IP6T -A ADMIN_IP -p tcp -m multiport --dport $SSHPORT,25,80,443,10050,10051 -j ACCEPT
-#$IP6T -A ADMIN_IP -i eth0 -p icmp --icmp-type destination-unreachable -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-#$IP6T -A ADMIN_IP -i eth0 -p icmp --icmp-type time-exceeded -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-#$IP6T -A ADMIN_IP -i eth0 -p icmp --icmp-type echo-reply -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-#$IP6T -A ADMIN_IP -i eth0 -p icmp --icmp-type echo-request -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-#$IP6T -A ADMIN_IP -i eth0 -p icmp -m limit --limit 1/s --limit-burst 1 -j LOG --log-prefix "iptables: PING-DROP: "
-#$IP6T -A ADMIN_IP -i eth0 -p icmp -j DROP
-
-# DUMP
-$IP6T -N DUMP > /dev/null
-$IP6T -F DUMP
-$IP6T -A DUMP -p tcp -j LOG --log-prefix "ip6tables: tcp: "
-$IP6T -A DUMP -p udp -j LOG --log-prefix "ip6tables: udp: "
-$IP6T -A DUMP -p tcp -j REJECT --reject-with tcp-reset
-$IP6T -A DUMP -p udp -j REJECT --reject-with icmp-port-unreachable
-$IP6T -A DUMP -j DROP
-
-# Add Admin IPs to INPUT Chain
-#$IP6T -A INPUT -s $ADMINV6 -j ADMIN_IP
-#$IP6T -A OUTPUT -d $ADMINV6 -j ADMIN_IP
-
-# Blocking excessive syn packet
-$IP6T -N SYN_FLOOD
-$IP6T -A INPUT -p tcp --syn -j SYN_FLOOD
-$IP6T -A SYN_FLOOD -m limit --limit 1/s --limit-burst 3 -j RETURN
-$IP6T -A SYN_FLOOD -j DROP
-
-# Stateful table
-$IP6T -N STATEFUL > /dev/null
-$IP6T -F STATEFUL
-$IP6T -I STATEFUL -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-$IP6T -A STATEFUL -m conntrack --ctstate NEW -i !eth0 -j ACCEPT
-$IP6T -A STATEFUL -j DUMP
-
-# Loopback rules
-$IP6T -A INPUT -i lo -j ACCEPT
-$IP6T -A INPUT -i !lo -d ::1 -j REJECT
-$IP6T -A OUTPUT -o lo -j ACCEPT
-$IP6T -A OUTPUT -o !lo -d ::1 -j REJECT
-
-# Block
-# Drop reserved addresses incoming (these are reserved addresses)
-# but may change soon
-$IP6T -A INPUT -i eth0 -s ::1 -j DUMP
-
-# Drop reserved addresses outgoing (these are reserved addresses)
-# but may change soon
-$IP6T -A OUTPUT -o eth0 -d ::1 -j DUMP
-
-# Allow certain inbound ICMP types (ping, traceroute..)
-$IP6T -A INPUT -i eth0 -p icmp --icmp-type destination-unreachable -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-$IP6T -A INPUT -i eth0 -p icmp --icmp-type time-exceeded -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-$IP6T -A INPUT -i eth0 -p icmp --icmp-type echo-reply -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-$IP6T -A INPUT -i eth0 -p icmp --icmp-type echo-request -m limit --limit  1/s --limit-burst 1 -j ACCEPT
-$IP6T -A INPUT -i eth0 -p icmp -m limit --limit 1/s --limit-burst 1 -j LOG --log-prefix "ip6tables: PING-DROP: "
-$IP6T -A INPUT -i eth0 -p icmp -j DROP
-
-# Drop all packets to port 111 except those from localhost
-$IP6T -A INPUT ! -s ::1 -p tcp --dport 111 -j REJECT --reject-with tcp-reset
-
-# kill off identd quick
-$IP6T -A INPUT -i eth0 -p tcp --dport 113 -j REJECT --reject-with tcp-reset
-
-# Allow all established, related in
-#$IP6T -A INPUT -i eth0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-
-# Allows Inbound NEW DOS SSH Attack prevention (only 4 attempts by an IP every 3 minutes, drop the rest)
-# The ACCEPT at the end is necessary or, it wouldn't accept any connection
-#$IP6T -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --set --name DEFAULT --rsource
-#$IP6T -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 4 --name DEFAULT --rsource -j LOG -m limit --limit 20/m --log-prefix "ip6tables: SSH Attempt on port $SSHPORT : "
-#$IP6T -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 4 --name DEFAULT --rsource -j REJECT
-#$IP6T -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT
-
-# Inbound ESTABLISHED SSH (out is in Multi-out)
-#$IP6T -A INPUT -i eth0 -p tcp --dport $SSHPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT
-
-# DOS HTTP Attack prevention
-# For this, no one seems to be using IPv6 for legitimet browsing, so, I've been disabling it
-#$IP6T -A INPUT -i eth0 -p tcp --dport 80 -m limit --limit 45/minute --limit-burst 300 -j ACCEPT
-#$IP6T -A INPUT -i eth0 -p tcp --dport 80 -m hashlimit --hashlimit-upto 80/min --hashlimit-burst 800 --hashlimit-mode srcip --hashlimit-name http -j ACCEPT
-#$IP6T -A INPUT -i eth0 -p tcp --dport 80 -j DROP
-#$IP6T -A INPUT -i eth0 -p tcp --dport 443 -m limit --limit 45/minute --limit-burst 300 -j ACCEPT
-#$IP6T -A INPUT -i eth0 -p tcp --dport 443 -m hashlimit --hashlimit-upto 80/min --hashlimit-burst 800 --hashlimit-mode srcip --hashlimit-name https -j ACCEPT
-#$IP6T -A INPUT -i eth0 -p tcp --dport 443 -j DROP
-
-# Allow Ping from Outside to Inside
-$IP6T -A OUTPUT -p icmp --icmp-type echo-reply -j ACCEPT
-
-# Multi-out for inbound SSH, HTTP, and HTTPS
-#$IP6T -A OUTPUT -o eth0 -p tcp -m multiport --sport $SSHPORT,80,443 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-
-# Outbound SSH
-#$IP6T -A INPUT -i eth0 -p tcp --sport $SSHPORT  -m conntrack --ctstate ESTABLISHED -j ACCEPT
-#$IP6T -A OUTPUT -o eth0 -p tcp --dport $SSHPORT  -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-
-# Allow inbound DNS
-$IP6T -A INPUT -i eth0 -p udp --sport 1024:65535 --dport 53 -j ACCEPT
-$IP6T -A OUTPUT -p udp --sport 53 --dport 1024:65535 -j ACCEPT
-
-# Allow outbound DNS
-$IP6T -A INPUT -i eth0 -p udp --dport 1024:65535 --sport 53 -j ACCEPT
-$IP6T -A OUTPUT -p udp --dport 53 --sport 1024:65535 -j ACCEPT
-
-# Outbound HTTP, and HTTPS
-#$IP6T -A OUTPUT -o eth0 -p tcp --dport 80 --sport 1024:65535 -j ACCEPT
-#$IP6T -A INPUT -i eth0 -p tcp --dport 1024:65535 --sport 80 -j ACCEPT
-#$IP6T -A OUTPUT -o eth0 -p tcp --dport 443 --sport 1024:65535 -j ACCEPT
-#$IP6T -A INPUT -i eth0 -p tcp --dport 1024:65535 --sport 443 -j ACCEPT
-
-# Inbound SMTP
-#$IP6T -A INPUT -i eth0 -p tcp --sport 1024:65535 --dport 25 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-#$IP6T -A OUPUT -o eth0 -p tcp --sport 25 --dport 1024:65535 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-
-# Outbound SMTP
-#$IP6T -A INPUT -i eth0 -p tcp --sport 25 --dport 1024:65535 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-#$IP6T -A OUTPUT -o eth0 -p tcp --sport 1024:65535 --dport 25 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-
-# Allow rsync from a specific network
-#$IP6T -A INPUT -i eth0 -p tcp -s 192.168.101.0/24 --dport 873 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-#$IP6T -A OUTPUT -o eth0 -p tcp --sport 873 -m conntrack --ctstate ESTABLISHED -j ACCEPT
-
-# Allow SVN
-#$IP6T -A INPUT -i eth0 -p tcp --dport 3690 --sport 1024:65535 -j ACCEPT
-#$IP6T -A OUTPUT -o eth0 -p tcp --sport 3690 --dport 1024:65535 -j ACCEPT
-#$IP6T -A INPUT -i eth0 -p tcp --dport 3667 --sport 1024:65535 -j ACCEPT
-#$IP6T -A OUTPUT -o eth0 -p tcp --sport 3667 --dport 1024:65535 -j ACCEPT
-
-# Allow all related
-#$IP6T -A OUTPUT -o eth0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-
-# Don't log route packets coming from routers - too much logging
-$IP6T -A INPUT -i eth0 -p udp --dport 520 -j REJECT
-
-# Don't log smb/windows sharing packets - too much logging
-$IP6T -A INPUT -i eth0 -p tcp --dport 137:139 -j REJECT
-$IP6T -A INPUT -i eth0 -p udp --dport 137:139 -j REJECT
-
-# All policies set to DROP
-$IP6T --policy INPUT DROP
-$IP6T --policy OUTPUT DROP
-$IP6T --policy FORWARD DROP
-#$IP6T --policy ADMIN_IP DROP
+sleep 300 && sh -c /home/chuck/bin/killgual.sh
