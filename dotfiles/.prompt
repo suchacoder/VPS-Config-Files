@@ -7,14 +7,14 @@ test "$SSH_CONNECTION" &&
 if [ $USER = root ]; then
     USER_COLOR_PROMPT="\e[01;34m\]"
   else
-    USER_COLOR_PROMPT="\e[01;31m\]"
+    USER_COLOR_PROMPT="\e[01;32m\]"
 fi
 
 
 if [ "$SSH_CONNECTION" ]; then
     PS1="\[$USER_COLOR_PROMPT\u \[\e[01;34m\]@ \[\e[01;33m\]$HOST_ADDRESS \[\e[01;35m\]\w\[$USER_COLOR_PROMPT > \[\e[0m\]"
   else
-    PS1="\[\e[01;33m\]\w\[$USER_COLOR_PROMPT > \[\e[0m\]"
+    PS1="\[\e[01;30m\]\w\[$USER_COLOR_PROMPT > \[\e[0m\]"
 fi
 
 # \[\e[01;35m\]\$? <--- exit status
@@ -36,3 +36,4 @@ test $TERM != linux &&
 export PS2='\[\e[01;33m\]continue\[$USER_COLOR_PROMPT > '
 export PS3='\[\e[01;33m\]choose\[$USER_COLOR_PROMPT: '
 export PS4='|${BASH_SOURCE} ${LINENO}${FUNCNAME[0]:+ ${FUNCNAME[0]}()}|  '
+
