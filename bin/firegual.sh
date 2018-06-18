@@ -230,4 +230,5 @@ $IPT --policy FORWARD DROP
 # Allow all related
 #$IPT -A OUTPUT -o eth0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
-sleep 300 && sh -c /home/chuck/bin/killgual.sh
+## Uncomment to test new firewall rules
+#sleep 120 && sh -c /home/chuck/bin/killgual.sh
