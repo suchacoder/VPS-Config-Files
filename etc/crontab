@@ -1,6 +1,6 @@
 ### root's cron
 
-* 09 * * * /sbin/shutdown -r +5
+* 10 * * * /sbin/shutdown -r +5
 
 
 ### chuck's cron 
@@ -11,4 +11,6 @@
 
 * 09 * * * /bin/echo " " > /home/$USER/urban/ts/q3ut4/games.log
 
-* 09 * * * /bin/echo " " > /home/$USER/urban/pcw/q3ut4/games.log
+01 09 * * * /bin/echo " " > /home/$USER/urban/pcw/q3ut4/games.log
+
+02 09 * * * /bin/echo " " > /home/chuck/urban/ctf/q3ut4/games.log
