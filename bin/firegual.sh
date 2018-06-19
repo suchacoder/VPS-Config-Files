@@ -16,8 +16,7 @@
 # Allowed blocklist response
 
 IPT=/sbin/iptables
-IP6T=/sbin/ip6tables
-ADMIN="181.0.0.0/8"
+ADMIN="181.21.0.0/16"
 SSHPORT="4455"
 DNS_SERVER="8.8.4.4 8.8.8.8"
 PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
@@ -56,21 +55,23 @@ do
 	$IPT -A INPUT  -p tcp -s "$ip" --sport 443 -m state --state ESTABLISHED     -j ACCEPT
 done
 
-# DUMP
-$IPT -N DUMP > /dev/null
-$IPT -F DUMP
-$IPT -A DUMP -p tcp -j LOG --log-prefix "iptables: tcp: "
-$IPT -A DUMP -p udp -j LOG --log-prefix "iptables: udp: "
-$IPT -A DUMP -p tcp -j REJECT --reject-with tcp-reset
-$IPT -A DUMP -p udp -j REJECT --reject-with icmp-port-unreachable
-$IPT -A DUMP -j DROP
+# LOGGING
+$IPT -N LOGGING > /dev/null
+$IPT -F LOGGING
+$IPT -A LOGGING -p tcp -j LOG --log-prefix "iptables: tcp: "
+$IPT -A LOGGING -p udp -j LOG --log-prefix "iptables: udp: "
+$IPT -A LOGGING -p icmp -j LOG --log-prefix "iptables: icmp: "
+$IPT -A LOGGING -p tcp -j REJECT --reject-with tcp-reset
+$IPT -A LOGGING -p udp -j REJECT --reject-with icmp-port-unreachable
+$IPT -A LOGGING -p icmp -j REJECT --reject-with icmp-port-unreachable
+$IPT -A LOGGING -j DROP
 
 # Stateful table
 $IPT -N STATEFUL > /dev/null
 $IPT -F STATEFUL
 $IPT -I STATEFUL -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 $IPT -A STATEFUL -m conntrack --ctstate NEW -i !eth0 -j ACCEPT
-$IPT -A STATEFUL -j DUMP
+$IPT -A STATEFUL -j LOGGING
 
 # Blocking excessive syn packet
 $IPT -N SYN_FLOOD
@@ -83,8 +84,8 @@ $IPT -A INPUT -s $ADMIN -j ACCEPT
 $IPT -A OUTPUT -d $ADMIN -j ACCEPT
 
 # Allow SSH
-$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT
-$IPT -A OUTPUT -o eth0 -p tcp -m tcp --sport $SSHPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT
+$IPT -A INPUT -i eth0 -p tcp -m tcp -s $ADMIN --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT
+$IPT -A OUTPUT -o eth0 -p tcp -m tcp -d $ADMIN --sport $SSHPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 # Enable IPSET blacklists - logs blocked attempts and responds with port unreachable
 ipset restore < /etc/ipset-blacklist/ip-blacklist.restore
@@ -104,59 +105,59 @@ $IPT -A OUTPUT -o eth0 -p udp -m multiport --sport $URTPORTS -m conntrack --ctst
 # Block
 # drop reserved addresses incoming (these are reserved addresses)
 # but may change soon
-$IPT -A INPUT -i eth0 -s 0.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 1.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 2.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 5.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 7.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 10.0.0.0/8 -j DUMP
+$IPT -A INPUT -i eth0 -s 0.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 1.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 2.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 5.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 7.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 10.0.0.0/8 -j LOGGING
 
 # Mostly US Commercial IP space, Google Fiber, and Business ISPs
 #$IPT -A INPUT -i eth0 -s 23.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 27.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 31.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 36.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 39.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 41.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 42.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 58.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 59.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 60.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 127.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 169.254.0.0/16 -j DUMP
-$IPT -A INPUT -i eth0 -s 172.16.0.0/12 -j DUMP
-$IPT -A INPUT -i eth0 -s 192.168.0.0/16 -j DUMP
-$IPT -A INPUT -i eth0 -s 197.0.0.0/8 -j DUMP
-$IPT -A INPUT -i eth0 -s 224.0.0.0/3 -j DUMP
-$IPT -A INPUT -i eth0 -s 240.0.0.0/8 -j DUMP
+$IPT -A INPUT -i eth0 -s 27.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 31.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 36.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 39.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 41.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 42.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 58.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 59.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 60.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 127.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 169.254.0.0/16 -j LOGGING
+$IPT -A INPUT -i eth0 -s 172.16.0.0/12 -j LOGGING
+$IPT -A INPUT -i eth0 -s 192.168.0.0/16 -j LOGGING
+$IPT -A INPUT -i eth0 -s 197.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i eth0 -s 224.0.0.0/3 -j LOGGING
+$IPT -A INPUT -i eth0 -s 240.0.0.0/8 -j LOGGING
 
 # drop reserved addresses incoming (these are reserved addresses)
 # but may change soon
-$IPT -A OUTPUT -o eth0 -d 0.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 1.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 2.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 5.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 7.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 10.0.0.0/8 -j DUMP
+$IPT -A OUTPUT -o eth0 -d 0.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 1.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 2.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 5.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 7.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 10.0.0.0/8 -j LOGGING
 
 # Mostly US Commercial IP space, Google Fiber, and Business ISPs
 #$IPT -A OUTPUT -o eth0 -d 23.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 27.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 31.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 36.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 39.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 41.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 42.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 58.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 59.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 60.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 127.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 169.254.0.0/16 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 172.16.0.0/12 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 192.168.0.0/16 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 197.0.0.0/8 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 224.0.0.0/3 -j DUMP
-$IPT -A OUTPUT -o eth0 -d 240.0.0.0/8 -j DUMP
+$IPT -A OUTPUT -o eth0 -d 27.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 31.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 36.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 39.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 41.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 42.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 58.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 59.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 60.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 127.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 169.254.0.0/16 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 172.16.0.0/12 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 192.168.0.0/16 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 197.0.0.0/8 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 224.0.0.0/3 -j LOGGING
+$IPT -A OUTPUT -o eth0 -d 240.0.0.0/8 -j LOGGING
 
 # Drop all packets to port 111 except those from localhost
 $IPT -A INPUT ! -s 127.0.0.0/8 -p tcp --dport 111 -j REJECT --reject-with tcp-reset
@@ -171,14 +172,12 @@ $IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW 
 $IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j REJECT
 $IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT
 
-# Multi-out for inbound SSH
-$IPT -A OUTPUT -o eth0 -p tcp --sport $SSHPORT -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-
-# Inbound ESTABLISHED SSH
-$IPT -A INPUT -i eth0 -p tcp --dport $SSHPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT
-
-# Outbound SSH
-$IPT -A OUTPUT -o eth0 -p tcp --dport $SSHPORT  -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+# Attack prevention (only 3 attempts by an IP every 3 minutes, drop the rest)
+# The ACCEPT at the end is necessary or, it wouldn't accept any connection
+$IPT -A INPUT -i eth0 -p tcp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW -m recent --set --name DEFAULT --rsource
+$IPT -A INPUT -i eth0 -p tcp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j LOG -m limit --limit 20/m --log-prefix "iptables: UrT Attack on port $URTPORTS : "
+$IPT -A INPUT -i eth0 -p tcp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j REJECT
+$IPT -A INPUT -i eth0 -p tcp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW -j ACCEPT
 
 # Don't log route packets coming from routers - too much logging
 $IPT -A INPUT -i eth0 -p udp --dport 520 -j REJECT
@@ -191,7 +190,12 @@ $IPT -A INPUT -i eth0 -p udp --dport 137:139 -j REJECT
 $IPT --policy INPUT DROP
 $IPT --policy OUTPUT DROP
 $IPT --policy FORWARD DROP
-#$IPT --policy ADMIN_IP DROP
+
+# Outbound for NEW SSH
+#$IPT -A OUTPUT -o eth0 -p tcp --dport $SSHPORT -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+
+# Inbound ESTABLISHED SSH
+#$IPT -A INPUT -i eth0 -p tcp --sport $SSHPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 # DOS HTTP Attack prevention
 # Need re-evaluation, the current rates do not allow for WordPress image upload features

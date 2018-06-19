@@ -13,4 +13,4 @@
 
 01 09 * * * /bin/echo " " > /home/$USER/urban/pcw/q3ut4/games.log
 
-02 09 * * * /bin/echo " " > /home/chuck/urban/ctf/q3ut4/games.log
+02 09 * * * /bin/echo " " > /home/$USER/urban/ctf/q3ut4/games.log
