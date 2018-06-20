@@ -12,7 +12,7 @@ fi
 
 
 if [ "$SSH_CONNECTION" ]; then
-    PS1="\[$USER_COLOR_PROMPT\u \[\e[01;31m\]@ \[\e[01;30m\]$HOST_ADDRESS \[\e[01;30m\]\w\[$USER_COLOR_PROMPT > \[\e[0m\]"
+    PS1="\[$USER_COLOR_PROMPT\u \[\e[01;31m\]@ \[\e[01;30m\]$HOST_ADDRESS \[\e[01;30m\]\w\e[01;31m\] > \[\e[0m\]"
   else
     PS1="\[\e[01;30m\]\w\[$USER_COLOR_PROMPT > \[\e[0m\]"
 fi
