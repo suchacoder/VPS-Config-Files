@@ -17,7 +17,7 @@
 
 IPT=/sbin/iptables
 ADMIN="181.21.0.0/16"
-SSHPORT="4455"
+SSHPORT="44555"
 DNS_SERVER="8.8.4.4 8.8.8.8"
 PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
 URTPORTS="1337,1338,1339"
