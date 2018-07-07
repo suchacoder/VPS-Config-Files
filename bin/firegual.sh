@@ -46,13 +46,9 @@ done
 # Allowing repositories
 for ip in $PACKAGE_SERVER
 do
-	echo "Allow connection to '$ip' on port 80"
-	$IPT -A OUTPUT -p tcp -d "$ip" --dport 80  -m state --state NEW,ESTABLISHED -j ACCEPT
-	$IPT -A INPUT  -p tcp -s "$ip" --sport 80  -m state --state ESTABLISHED     -j ACCEPT
-
-	echo "Allow connection to '$ip' on port 443"
-	$IPT -A OUTPUT -p tcp -d "$ip" --dport 443 -m state --state NEW,ESTABLISHED -j ACCEPT
-	$IPT -A INPUT  -p tcp -s "$ip" --sport 443 -m state --state ESTABLISHED     -j ACCEPT
+	echo "Allow connection to '$ip' on ports 80 and 443"
+	$IPT -A OUTPUT -p tcp -d "$ip" -m multiport --dport 80,443 -m state --state NEW,ESTABLISHED -j ACCEPT
+	$IPT -A INPUT  -p tcp -s "$ip" -m multiport --sport 80,443 -m state --state ESTABLISHED     -j ACCEPT
 done
 
 # LOGGING
@@ -83,24 +79,37 @@ $IPT -A SYN_FLOOD -j DROP
 $IPT -A INPUT -s $ADMIN -j ACCEPT
 $IPT -A OUTPUT -d $ADMIN -j ACCEPT
 
+# Enable IPSET blacklists - logs blocked attempts and responds with port unreachable
+ipset restore < /etc/ipset-blacklist/ip-blacklist.restore
+$IPT -I INPUT 1 -m set --match-set blacklist src -j LOG --log-prefix "IP Blacklist: "
+$IPT -I INPUT 2 -m set --match-set blacklist src -j REJECT --reject-with icmp-port-unreachable
+
+# IPSET Output Blocklist - allows reject packet to be sent with no log but no further communication
+$IPT -I OUTPUT 1 -m set --match-set blacklist dst -p icmp --icmp-type port-unreachable -j ACCEPT
+$IPT -I OUTPUT 2 -m set --match-set blacklist dst -j LOG --log-prefix "IP Blacklist: "
+$IPT -I OUTPUT 3 -m set --match-set blacklist dst -j REJECT --reject-with icmp-port-unreachable
+
 # Allow SSH
 $IPT -A INPUT -i eth0 -p tcp -m tcp -s $ADMIN --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT
 $IPT -A OUTPUT -o eth0 -p tcp -m tcp -d $ADMIN --sport $SSHPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
-# Enable IPSET blacklists - logs blocked attempts and responds with port unreachable
-ipset restore < /etc/ipset-blacklist/ip-blacklist.restore
-$IPT -A INPUT -m set --match-set blacklist src -j LOG --log-prefix "IP Blacklist: "
-$IPT -A INPUT -m set --match-set blacklist src -j REJECT --reject-with icmp-port-unreachable
-#iptables -I INPUT 1 -m set --match-set blacklist src -j DROP
-
-# IPSET Output Blocklist - allows reject packet to be sent with no log but no further communication
-$IPT -A OUTPUT -m set --match-set blacklist dst -p icmp --icmp-type port-unreachable -j ACCEPT
-$IPT -A OUTPUT -m set --match-set blacklist dst -j LOG --log-prefix "IP Blacklist: "
-$IPT -A OUTPUT -m set --match-set blacklist dst -j REJECT --reject-with icmp-port-unreachable
+# Allows Inbound NEW DOS SSH Attack prevention (only 3 attempts by an IP every 3 minutes, drop the rest)
+# The ACCEPT at the end is necessary or, it wouldn't accept any connection
+$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --set --name DEFAULT --rsource
+$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j LOG -m limit --limit 20/m --log-prefix "iptables: SSH Attempt on port $SSHPORT : "
+$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j REJECT
+$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT
 
 # Allow UrT
 $IPT -A INPUT -i eth0 -p udp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
 $IPT -A OUTPUT -o eth0 -p udp -m multiport --sport $URTPORTS -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
+
+# Attack prevention (only 3 attempts by an IP every 3 minutes, drop the rest)
+# The ACCEPT at the end is necessary or, it wouldn't accept any connection
+$IPT -A INPUT -i eth0 -p udp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW -m recent --set --name DEFAULT --rsource
+$IPT -A INPUT -i eth0 -p udp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j LOG -m limit --limit 20/m --log-prefix "iptables: UrT Attack on port $URTPORTS : "
+$IPT -A INPUT -i eth0 -p udp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j REJECT
+$IPT -A INPUT -i eth0 -p udp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW -j ACCEPT
 
 # Block
 # drop reserved addresses incoming (these are reserved addresses)
@@ -164,20 +173,6 @@ $IPT -A INPUT ! -s 127.0.0.0/8 -p tcp --dport 111 -j REJECT --reject-with tcp-re
 
 # kill off identd quick
 $IPT -A INPUT -i eth0 -p tcp --dport 113 -j REJECT --reject-with tcp-reset
-
-# Allows Inbound NEW DOS SSH Attack prevention (only 3 attempts by an IP every 3 minutes, drop the rest)
-# The ACCEPT at the end is necessary or, it wouldn't accept any connection
-$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --set --name DEFAULT --rsource
-$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j LOG -m limit --limit 20/m --log-prefix "iptables: SSH Attempt on port $SSHPORT : "
-$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j REJECT
-$IPT -A INPUT -i eth0 -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT
-
-# Attack prevention (only 3 attempts by an IP every 3 minutes, drop the rest)
-# The ACCEPT at the end is necessary or, it wouldn't accept any connection
-$IPT -A INPUT -i eth0 -p tcp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW -m recent --set --name DEFAULT --rsource
-$IPT -A INPUT -i eth0 -p tcp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j LOG -m limit --limit 20/m --log-prefix "iptables: UrT Attack on port $URTPORTS : "
-$IPT -A INPUT -i eth0 -p tcp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j REJECT
-$IPT -A INPUT -i eth0 -p tcp -m multiport --dport $URTPORTS -m conntrack --ctstate NEW -j ACCEPT
 
 # Don't log route packets coming from routers - too much logging
 $IPT -A INPUT -i eth0 -p udp --dport 520 -j REJECT
