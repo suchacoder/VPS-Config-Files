@@ -66,10 +66,10 @@ do
 done
 
 # Block script kiddies or scanning ports
-ipset -N bad_guys iphash
-$IPT -A INPUT -i $IFACE -p tcp -m multiport --dports ! $TCP_SERVICES -j SET --add-set bad_guys src
-$IPT -A INPUT -i $IFACE -p udp -m multiport --dports ! $UDP_SERVICES -j SET --add-set bad_guys src
-$IPT -A INPUT -m set --set bad_guys src -j DROP
+echo "Activating port scanner detector..."
+$IPT -A INPUT -i $IFACE -p tcp -m multiport ! --dports $TCP_SERVICES -m conntrack --ctstate NEW -j SET --add-set bad_guys src -m comment --comment "Port scanner"
+$IPT -A INPUT -i $IFACE -p udp -m multiport ! --dports $UDP_SERVICES -j SET --add-set bad_guys src -m comment --comment "Port scanner"
+$IPT -A INPUT -m set --match-set bad_guys src -j DROP -m comment --comment "DROP port scanner"
 
 # Admin IPs Version 2
 echo "Enabling admin's IP..."
