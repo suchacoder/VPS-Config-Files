@@ -2,9 +2,9 @@
 # SSH Port easy customization
 # Allows Local Loopback
 # Allows DNS Query and Response
+# Blocks port scanners
 # Blocks bad source
 # Blocks non local Loopback
-# Blocks port scanners
 # Blocks spoofed/invalid packets
 # Blocks Smurf attacks
 # DOS Protection and reporting
@@ -12,10 +12,8 @@
 # DOS ICMP
 # DOS SSH
 # Logging
-# Admin IP / Monitoring Section
+# Admin IP
 # IPSET Blocklist Support
-# Fixed SRC/DST Admin
-# Allowed blocklist response
 
 IPT=/sbin/iptables
 IFACE="ens3"
@@ -26,6 +24,8 @@ PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
 IPSET_HOSTS="104.16.37.47,104.16.38.47,104.20.4.21,104.20.5.21,138.201.14.212,151.101.4.133,185.21.103.31,188.40.39.38,199.188.221.36,208.70.186.167,209.124.55.40"
 URTPORTS="1337,1339"
 AUTH_MASTER_PORTS="27952,27900"
+TCP_SERVICES="53,44555"
+UDP_SERVICES="53,68,1337,1339"
 
 echo "Enabling Firewall..."
 
@@ -57,13 +57,19 @@ do
 	$IPT -A INPUT -i $IFACE -p tcp -s "$repositories" -m multiport --sports 80,443 -m state --state ESTABLISHED -j ACCEPT -m comment --comment "Repositories"
 done
 
-# Allowing IPSET hosts
+# Allowing IPSET hosts to retrive bad guys IP's
 echo "Enabling IPSET hosts..."
 for hosts in $IPSET_HOSTS
 do
 	$IPT -A OUTPUT -o $IFACE -p tcp -d "$IPSET_HOSTS" -m multiport --dports 80,443 -m state --state NEW,ESTABLISHED -j ACCEPT -m comment --comment "IPSET hosts"
 	$IPT -A INPUT -i $IFACE -p tcp -s "$IPSET_HOSTS" -m multiport --sports 80,443 -m state --state ESTABLISHED -j ACCEPT -m comment --comment "IPSET hosts"
 done
+
+# Block script kiddies or scanning ports
+ipset -N bad_guys iphash
+$IPT -A INPUT -i $IFACE -p tcp -m multiport --dports ! $TCP_SERVICES -j SET --add-set bad_guys src
+$IPT -A INPUT -i $IFACE -p udp -m multiport --dports ! $UDP_SERVICES -j SET --add-set bad_guys src
+$IPT -A INPUT -m set --set bad_guys src -j DROP
 
 # Admin IPs Version 2
 echo "Enabling admin's IP..."
@@ -160,10 +166,10 @@ $IPT -A OUTPUT -j LOGGING
 $IPT -A LOGGING -p tcp -j LOG --log-prefix "iptables: tcp: "
 $IPT -A LOGGING -p udp -j LOG --log-prefix "iptables: udp: "
 $IPT -A LOGGING -p icmp -j LOG --log-prefix "iptables: icmp: "
-$IPT -A LOGGING -p tcp -j REJECT --reject-with tcp-reset -m comment --comment "LOGGING"
-$IPT -A LOGGING -p udp -j REJECT --reject-with icmp-port-unreachable -m comment --comment "LOGGING"
-$IPT -A LOGGING -p icmp -j REJECT --reject-with icmp-port-unreachable -m comment --comment "LOGGING"
 $IPT -A LOGGING -m limit --limit 1/min -j LOG --log-level 4
+$IPT -A LOGGING -p tcp -j DROP -m comment --comment "LOGGING"
+$IPT -A LOGGING -p udp -j DROP -m comment --comment "LOGGING"
+$IPT -A LOGGING -p icmp -j DROP -m comment --comment "LOGGING"
 $IPT -A LOGGING -j DROP
 
 # Send spoofed packers to the LOGGING chain tobe processed and then droped
