@@ -11,6 +11,8 @@ iptables -t raw -F
 iptables -t raw -X
 iptables -t security -F
 iptables -t security -X
+ipset -F
+ipset -X
 iptables -P INPUT ACCEPT
 iptables -P FORWARD ACCEPT
 iptables -P OUTPUT ACCEPT
