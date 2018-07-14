@@ -33,123 +33,123 @@ echo "Enabling Firewall..."
 
 # Loopback rules
 echo "Enabling loopback rules..."
-$IPT -A INPUT -i lo -j ACCEPT
-$IPT -A INPUT -i !lo -d 127.0.0.0/8 -j REJECT
-$IPT -A OUTPUT -o lo -j ACCEPT
-$IPT -A OUTPUT -o !lo -d 127.0.0.0/8 -j REJECT
+$IPT -A INPUT -i lo -j ACCEPT -m comment --comment "Loopbacks"
+$IPT -A INPUT -i !lo -d 127.0.0.0/8 -j REJECT -m comment --comment "Loopbacks"
+$IPT -A OUTPUT -o lo -j ACCEPT -m comment --comment "Loopbacks"
+$IPT -A OUTPUT -o !lo -d 127.0.0.0/8 -j REJECT -m comment --comment "Loopbacks"
 
 # This should be one of the first rules.
 # so dns lookups are already allowed for your other rules
 echo "Allowing DNS lookups (tcp, udp port 53) to server '$DNS_SERVER'..."
 for ip in $DNS_SERVER
 do
-	$IPT -A OUTPUT -o $IFACE -p udp -d $ip --dport 53 -m state --state NEW,ESTABLISHED -j ACCEPT
-	$IPT -A INPUT -i $IFACE -p udp -s $ip --sport 53 -m state --state ESTABLISHED -j ACCEPT
-	$IPT -A OUTPUT -o $IFACE -p tcp -d $ip --dport 53 -m state --state NEW,ESTABLISHED -j ACCEPT
-	$IPT -A INPUT -i $IFACE -p tcp -s $ip --sport 53 -m state --state ESTABLISHED -j ACCEPT
+	$IPT -A OUTPUT -o $IFACE -p udp -d $ip --dport 53 -m state --state NEW,ESTABLISHED -j ACCEPT -m comment --comment "DNS Lookups"
+	$IPT -A INPUT -i $IFACE -p udp -s $ip --sport 53 -m state --state ESTABLISHED -j ACCEPT -m comment --comment "DNS Lookups"
+	$IPT -A OUTPUT -o $IFACE -p tcp -d $ip --dport 53 -m state --state NEW,ESTABLISHED -j ACCEPT -m comment --comment "DNS Lookups"
+	$IPT -A INPUT -i $IFACE -p tcp -s $ip --sport 53 -m state --state ESTABLISHED -j ACCEPT -m comment --comment "DNS Lookups"
 done
 
 # Allowing repositories
 echo "Enabling Repositories..."
 for repositories in $PACKAGE_SERVER
 do
-	$IPT -A OUTPUT -o $IFACE -p tcp -d "$repositories" -m multiport --dports 80,443 -m state --state NEW,ESTABLISHED -j ACCEPT
-	$IPT -A INPUT -i $IFACE -p tcp -s "$repositories" -m multiport --sports 80,443 -m state --state ESTABLISHED -j ACCEPT
+	$IPT -A OUTPUT -o $IFACE -p tcp -d "$repositories" -m multiport --dports 80,443 -m state --state NEW,ESTABLISHED -j ACCEPT -m comment --comment "Repositories"
+	$IPT -A INPUT -i $IFACE -p tcp -s "$repositories" -m multiport --sports 80,443 -m state --state ESTABLISHED -j ACCEPT -m comment --comment "Repositories"
 done
 
 # Allowing IPSET hosts
 echo "Enabling IPSET hosts..."
 for hosts in $IPSET_HOSTS
 do
-	$IPT -A OUTPUT -o $IFACE -p tcp -d "$IPSET_HOSTS" -m multiport --dports 80,443 -m state --state NEW,ESTABLISHED -j ACCEPT
-	$IPT -A INPUT -i $IFACE -p tcp -s "$IPSET_HOSTS" -m multiport --sports 80,443 -m state --state ESTABLISHED -j ACCEPT
+	$IPT -A OUTPUT -o $IFACE -p tcp -d "$IPSET_HOSTS" -m multiport --dports 80,443 -m state --state NEW,ESTABLISHED -j ACCEPT -m comment --comment "IPSET hosts"
+	$IPT -A INPUT -i $IFACE -p tcp -s "$IPSET_HOSTS" -m multiport --sports 80,443 -m state --state ESTABLISHED -j ACCEPT -m comment --comment "IPSET hosts"
 done
 
 # Admin IPs Version 2
 echo "Enabling admin's IP..."
-$IPT -A INPUT -s $ADMIN -j ACCEPT
-$IPT -A OUTPUT -d $ADMIN -j ACCEPT
+$IPT -A INPUT -s $ADMIN -j ACCEPT -m comment --comment "Admin's IP"
+$IPT -A OUTPUT -d $ADMIN -j ACCEPT -m comment --comment "Admin's IP"
 
 # Stateful table
 echo "Making the firegual statefull..."
 $IPT -N STATEFUL > /dev/null
 $IPT -F STATEFUL
-$IPT -I STATEFUL -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-$IPT -A STATEFUL -m conntrack --ctstate NEW -i !eth0 -j ACCEPT
+$IPT -I STATEFUL -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT -m comment --comment "Statefull"
+$IPT -A STATEFUL -m conntrack --ctstate NEW -i !eth0 -j ACCEPT -m comment --comment "Statefull"
 $IPT -A STATEFUL -j LOG --log-prefix "iptables stateful LOG: "
 
-# Enable IPSET blacklists - logs blocked attempts and responds with port unreachable
+# Enable IPSET blacklists - logs blocked attempts and drop packets
 echo "Enabling IPSET..."
 ipset restore < /etc/ipset-blacklist/ip-blacklist.restore
 $IPT -I INPUT 1 -i $IFACE -m set --match-set blacklist src -j LOG --log-prefix "iptables IP Blacklist: "
-$IPT -I INPUT 2 -i $IFACE -m set --match-set blacklist src -j DROP
+$IPT -I INPUT 2 -i $IFACE -m set --match-set blacklist src -j DROP -m comment --comment "IPset Blacklist"
 
 # Allow SSH
 echo "Allowing SSH... "
-$IPT -A INPUT -i $IFACE -p tcp -s $ADMIN --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT
-$IPT -A OUTPUT -o $IFACE -p tcp -d $ADMIN --sport $SSHPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT
+$IPT -A INPUT -i $IFACE -p tcp -s $ADMIN --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT -m comment --comment "SSH"
+$IPT -A OUTPUT -o $IFACE -p tcp -d $ADMIN --sport $SSHPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "SSH"
 
 # Allows Inbound NEW DOS SSH Attack prevention (only 3 attempts by an IP every 3 minutes, drop the rest)
 # The ACCEPT at the end is necessary or, it wouldn't accept any connection
 echo "Enabling DOS SSH atack prevention... "
 $IPT -A INPUT -i $IFACE -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --set --name DEFAULT --rsource
 $IPT -A INPUT -i $IFACE -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j LOG -m limit --limit 20/m --log-prefix "iptables SSH Attempt on port $SSHPORT: "
-$IPT -A INPUT -i $IFACE -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j DROP
-$IPT -A INPUT -i $IFACE -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT
+$IPT -A INPUT -i $IFACE -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j DROP -m comment --comment "SSH DOS prevention"
+$IPT -A INPUT -i $IFACE -p tcp -m tcp --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT -m comment --comment "SSH DOS prevention"
 
 # Log and allow UrT
 echo "Logging and allowing UrT connections..."
 $IPT -A INPUT -i $IFACE -p udp -m multiport --dports $URTPORTS -j LOG --log-prefix "iptables: UrT Connections: "
-$IPT -A INPUT -i $IFACE -p udp -m multiport --dports $URTPORTS -j ACCEPT
-$IPT -A OUTPUT -o $IFACE -p udp -m multiport --sports $URTPORTS -j ACCEPT
+$IPT -A INPUT -i $IFACE -p udp -m multiport --dports $URTPORTS -j ACCEPT -m comment --comment "UrT"
+$IPT -A OUTPUT -o $IFACE -p udp -m multiport --sports $URTPORTS -j ACCEPT -m comment --comment "UrT"
 
 echo "Allowing auth and masterlist..."
-$IPT -A INPUT -i $IFACE -p udp -m multiport --sports $AUTH_MASTER_PORTS -j ACCEPT
-$IPT -A OUTPUT -o $IFACE -p udp -m multiport --dports $AUTH_MASTER_PORTS -j ACCEPT
+$IPT -A INPUT -i $IFACE -p udp -m multiport --sports $AUTH_MASTER_PORTS -j ACCEPT -m comment --comment "UrT Auth and Master"
+$IPT -A OUTPUT -o $IFACE -p udp -m multiport --dports $AUTH_MASTER_PORTS -j ACCEPT -m comment --comment "UrT Auth and Master"
 
 echo "Deny Gameservers"
-$IPT -A INPUT -i $IFACE -p udp --sport 27960 -j DROP
+$IPT -A INPUT -i $IFACE -p udp --sport 27960 -j DROP -m comment --comment "Block GameServers"
 
 # Attack prevention (only 3 attempts by an IP every 3 minutes, drop the rest)
 # The ACCEPT at the end is necessary or, it wouldn't accept any connection
 echo "Enabling UrT DOS atack prevention..."
 $IPT -A INPUT -i $IFACE -p udp -m multiport --dports $URTPORTS -m conntrack --ctstate NEW -m recent --set --name DEFAULT --rsource
 $IPT -A INPUT -i $IFACE -p udp -m multiport --dports $URTPORTS -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j LOG -m limit --limit 20/m --log-prefix "iptables UrT Attack on port $URTPORTS: "
-$IPT -A INPUT -i $IFACE -p udp -m multiport --dports $URTPORTS -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j DROP
+$IPT -A INPUT -i $IFACE -p udp -m multiport --dports $URTPORTS -m conntrack --ctstate NEW -m recent --update --seconds 180 --hitcount 3 --name DEFAULT --rsource -j DROP -m comment --comment "UrT DOS prevention"
 $IPT -A INPUT -i $IFACE -p udp -m multiport --dports $URTPORTS -m conntrack --ctstate NEW -j ACCEPT
 
 # Drop all packets to port 111 except those from localhost
 echo "Rejecting all packets to port 111 excecpt packets from localhost... "
-$IPT -A INPUT ! -s 127.0.0.0/8 -p tcp --dport 111 -j REJECT --reject-with tcp-reset
+$IPT -A INPUT ! -s 127.0.0.0/8 -p tcp --dport 111 -j REJECT --reject-with tcp-reset -m comment --comment "Reject Spoof"
 
 # kill off identd quick
 echo "Killing identd..."
-$IPT -A INPUT -i $IFACE -p tcp --dport 113 -j REJECT --reject-with tcp-reset
+$IPT -A INPUT -i $IFACE -p tcp --dport 113 -j REJECT --reject-with tcp-reset -m comment --comment "Reject identd"
 
 # Don't log route packets coming from routers - too much logging
 echo "Rejecting router's packets..."
-$IPT -A INPUT -p udp --dport 520 -j REJECT
+$IPT -A INPUT -p udp --dport 520 -j REJECT -m comment --comment "Reject router packets"
 
 # Don't log smb/windows sharing packets - too much logging
 echo "Disabling logging smb packets..."
-$IPT -A INPUT -i $IFACE -p tcp --dport 137:139 -j REJECT
-$IPT -A INPUT -i $IFACE -p udp --dport 137:139 -j REJECT
+$IPT -A INPUT -i $IFACE -p tcp --dport 137:139 -j REJECT -m comment --comment "Reject smb"
+$IPT -A INPUT -i $IFACE -p udp --dport 137:139 -j REJECT -m comment --comment "Reject smb"
 
 # Blocking excessive syn packet
 echo "Blocking syn packets..."
 $IPT -N SYN_FLOOD
 $IPT -A INPUT -p tcp --syn -j SYN_FLOOD
 $IPT -A SYN_FLOOD -m limit --limit 1/s --limit-burst 3 -j RETURN
-$IPT -A SYN_FLOOD -j DROP
+$IPT -A SYN_FLOOD -j DROP -m comment --comment "Block excessive syn"
 
 # Stop smurf attacks
 echo "Enabling smurf attack detector..."
-$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type address-mask-request -j DROP
-$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type timestamp-request -j DROP
+$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type address-mask-request -j DROP -m comment --comment "Block smurf attacks"
+$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type timestamp-request -j DROP -m comment --comment "Block smurf attacks"
 $IPT -A INPUT -i $IFACE -p icmp -m icmp -j DROP
 
 # Drop excessive RST packets to avoid smurf attacks
-$IPT -A INPUT -i $IFACE -p tcp -m tcp --tcp-flags RST RST -m limit --limit 2/second --limit-burst 2 -j ACCEPT
+$IPT -A INPUT -i $IFACE -p tcp -m tcp --tcp-flags RST RST -m limit --limit 2/second --limit-burst 2 -j ACCEPT -m comment --comment "Block smurf attacks"
 
 # LOGGING
 echo "Creating LOGGING chain..."
@@ -160,9 +160,9 @@ $IPT -A OUTPUT -j LOGGING
 $IPT -A LOGGING -p tcp -j LOG --log-prefix "iptables: tcp: "
 $IPT -A LOGGING -p udp -j LOG --log-prefix "iptables: udp: "
 $IPT -A LOGGING -p icmp -j LOG --log-prefix "iptables: icmp: "
-$IPT -A LOGGING -p tcp -j REJECT --reject-with tcp-reset
-$IPT -A LOGGING -p udp -j REJECT --reject-with icmp-port-unreachable
-$IPT -A LOGGING -p icmp -j REJECT --reject-with icmp-port-unreachable
+$IPT -A LOGGING -p tcp -j REJECT --reject-with tcp-reset -m comment --comment "LOGGING"
+$IPT -A LOGGING -p udp -j REJECT --reject-with icmp-port-unreachable -m comment --comment "LOGGING"
+$IPT -A LOGGING -p icmp -j REJECT --reject-with icmp-port-unreachable -m comment --comment "LOGGING"
 $IPT -A LOGGING -m limit --limit 1/min -j LOG --log-level 4
 $IPT -A LOGGING -j DROP
 
@@ -170,43 +170,43 @@ $IPT -A LOGGING -j DROP
 echo "Enabliing Spoof attack detector..."
 
 # These adresses are mostly used for LAN's, so if these would come to a WAN-only server, drop them
-$IPT -A INPUT -i $IFACE -s 10.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 127.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 169.254.0.0/16 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 172.16.0.0/12 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 192.168.0.0/16 -j LOGGING
+$IPT -A INPUT -i $IFACE -s 10.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP LAN Spoof"
+$IPT -A INPUT -i $IFACE -s 127.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP LAN Spoof"
+$IPT -A INPUT -i $IFACE -s 169.254.0.0/16 -j LOGGING -m comment --comment "LOG and DROP LAN Spoof"
+$IPT -A INPUT -i $IFACE -s 172.16.0.0/12 -j LOGGING -m comment --comment "LOG and DROP LAN Spoof"
+$IPT -A INPUT -i $IFACE -s 192.168.0.0/16 -j LOGGING -m comment --comment "LOG and DROP LAN Spoof"
 
-# Multicast-adresses
-$IPT -A INPUT -i $IFACE -s 0.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -d 0.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 224.0.0.0/4 -j LOGGING
-$IPT -A INPUT -i $IFACE -d 224.0.0.0/4 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 240.0.0.0/5 -j LOGGING
-$IPT -A INPUT -i $IFACE -d 240.0.0.0/5 -j LOGGING
-$IPT -A INPUT -i $IFACE -d 239.255.255.0/24 -j LOGGING
-$IPT -A INPUT -i $IFACE -d 255.255.255.255 -j LOGGING
+# Multicast-addresses
+$IPT -A INPUT -i $IFACE -s 0.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP multicast-addresses Spoof"
+$IPT -A INPUT -i $IFACE -d 0.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP multicast-addresses Spoof"
+$IPT -A INPUT -i $IFACE -s 224.0.0.0/4 -j LOGGING -m comment --comment "LOG and DROP multicast-addresses Spoof"
+$IPT -A INPUT -i $IFACE -d 224.0.0.0/4 -j LOGGING -m comment --comment "LOG and DROP multicast-addresses Spoof"
+$IPT -A INPUT -i $IFACE -s 240.0.0.0/5 -j LOGGING -m comment --comment "LOG and DROP multicast-addresses Spoof"
+$IPT -A INPUT -i $IFACE -d 240.0.0.0/5 -j LOGGING -m comment --comment "LOG and DROP multicast-addresses Spoof"
+$IPT -A INPUT -i $IFACE -d 239.255.255.0/24 -j LOGGING -m comment --comment "LOG and DROP multicast-addresses Spoof"
+$IPT -A INPUT -i $IFACE -d 255.255.255.255 -j LOGGING -m comment --comment "LOG and DROP multicast-addresses Spoof"
 
 # Reserved adresses and US comercial ips
-$IPT -A INPUT -i $IFACE -s 1.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 2.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 5.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 7.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 27.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 31.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 36.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 39.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 41.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 42.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 58.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 59.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 60.0.0.0/8 -j LOGGING
-$IPT -A INPUT -i $IFACE -s 197.0.0.0/8 -j LOGGING
+$IPT -A INPUT -i $IFACE -s 1.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
+$IPT -A INPUT -i $IFACE -s 2.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
+$IPT -A INPUT -i $IFACE -s 5.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
+$IPT -A INPUT -i $IFACE -s 7.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
+$IPT -A INPUT -i $IFACE -s 27.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
+$IPT -A INPUT -i $IFACE -s 31.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
+$IPT -A INPUT -i $IFACE -s 36.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
+$IPT -A INPUT -i $IFACE -s 39.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
+$IPT -A INPUT -i $IFACE -s 41.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
+$IPT -A INPUT -i $IFACE -s 42.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
+$IPT -A INPUT -i $IFACE -s 58.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
+$IPT -A INPUT -i $IFACE -s 59.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
+$IPT -A INPUT -i $IFACE -s 60.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
+$IPT -A INPUT -i $IFACE -s 197.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
 
 # Drop INVALID packets
 echo "Dropping INVALID packets... "
-$IPT -A INPUT -m conntrack --ctstate INVALID -j DROP
-$IPT -A OUTPUT -m conntrack --ctstate INVALID -j DROP
-$IPT -A FORWARD -m conntrack --ctstate INVALID -j DROP
+$IPT -A INPUT -m conntrack --ctstate INVALID -j DROP -m comment --comment "Drop INVALID packets"
+$IPT -A OUTPUT -m conntrack --ctstate INVALID -j DROP -m comment --comment "Drop INVALID packets"
+$IPT -A FORWARD -m conntrack --ctstate INVALID -j DROP -m comment --comment "Drop INVALID packets"
 
 # All policies set to DROP
 echo "Setting up DROP policy..."
