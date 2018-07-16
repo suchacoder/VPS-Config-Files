@@ -1,4 +1,5 @@
 #!/bin/sh
+
 # SSH Port ez customization
 # Admin IP ez customization
 # Ez testing rules without locking you out of your vps :p
