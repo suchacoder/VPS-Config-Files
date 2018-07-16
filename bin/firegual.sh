@@ -1,19 +1,24 @@
 #!/bin/sh
-# SSH Port easy customization
+# SSH Port ez customization
+# Admin IP ez customization
+# Ez testing rules without locking you out of your vps :p
+# Statefull
+# Allows UrT INC and OUT packets
+# Allows Ubuntu's repositorie (by ez modification to allow your distro's repos)
 # Allows Local Loopback
 # Allows DNS Query and Response
-# Blocks port scanners
+# Allows retriving bad boys IPs from well known hosts like Firehol
+# IPSET Blocklist Support
+# Blocks and bans port scanners
 # Blocks bad source
 # Blocks non local Loopback
 # Blocks spoofed/invalid packets
 # Blocks Smurf attacks
-# DOS Protection and reporting
+# LOG and Blocks DOS
 # DOS SYN Flood
 # DOS ICMP
 # DOS SSH
-# Logging
-# Admin IP
-# IPSET Blocklist Support
+# Logging blocked packages
 
 IPT=/sbin/iptables
 IFACE="ens3"
