@@ -49,7 +49,7 @@ IPSET=/sbin/ipset
 
 # VARs
 IFACE="ens3"
-ADMIN="0.0.0.0/16"
+ADMIN="0.0.0.0/0"
 SSHPORT="22"
 DNS_SERVER="8.8.8.8,8.8.4.4"
 PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
