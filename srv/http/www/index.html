@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<link rel="stylesheet" type="text/css" href="/css/style.css">
+	<head>
+		<meta charset="UTF-8">
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+		<title>Guelcam to Gz web server!</title>
+	</head>
+		<body>
+			<main>
+				<div class="topnav">
+					<a href="#guelcam">GUELCAM</a>
+					<a href="#videos">VIDEOS</a>
+					<a href="#demos">DEMOS</a>
+					<a href="#contact">CONTACT</a>
+					<a href="#" class="donate">DONATE</a>
+				</div>
+				<section id=guelcam>
+					<p>Welcome to <strong>[Gz] website</strong> Urban Terror players, on this website you'll find some cool <strong>videos</strong> and<strong> demos</strong> from well known skilled players, a <strong>contact</strong> section and a 
+<strong>forum</strong> is on its way!!!</p>
+				</section>
+				<section id=videos>
+					<a href="http://207.246.116.13/videos/" class="videobutton"><span>Videos</span></a>
+				</section>
+				<section id=demos>
+					<a href="http://207.246.116.13/demos/" class="demobutton"><span>Demos</span></a>
+				</section>
+				<section id=contact>
+					<a class="discordbutton" href="https://discordapp.com/invite/SYszpQ9" rel="nofollow" target="_blank"><span>Discord</span></a>
+					<a class="facebookbutton" href="https://www.facebook.com/groups/Gz.GamerZone.UrT/" rel="nofollow" target="_blank"><span>Facebook</span></a>
+					<a class="teamspeakbutton" href="ts3server://207.246.116.13:9987" rel="nofollow" target="_blank"><span>Teamspeak</span></a>
+				</section>
+			</main>
+			<button onclick="topFunction()" id="top" title="Go to top">Top</button>
+<script>
+    $(document).ready(function(){
+        // Add smooth scrolling to all links
+        $("a").on('click', function(event) {
+
+            // Make sure this.hash has a value before overriding default behavior
+            if (this.hash !== "") {
+                // Prevent default anchor click behavior
+                event.preventDefault();
+
+                // Store hash
+                var hash = this.hash;
+
+                // Using jQuery's animate() method to add smooth page scroll
+                // The optional number (800) specifies the number of milliseconds it takes to scroll to the specified area
+                $('html, body').animate({
+                  scrollTop: $(hash).offset().top
+                }, 800, function(){
+   
+                // Add hash (#) to URL when done scrolling (default click behavior)
+                window.location.hash = hash;
+                });
+            } // End if
+        });
+    });
+</script>
+
+<script>
+	// When the user scrolls down 20px from the top of the document, show the button
+	window.onscroll = function() {scrollFunction()};
+
+	function scrollFunction() {
+    	if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+        	document.getElementById("top").style.display = "block";
+    	} else {
+        	document.getElementById("top").style.display = "none";
+    	}
+	}
+
+	// When the user clicks on the button, scroll to the top of the document
+	function topFunction() {
+    	document.body.scrollTop = 0; // For Safari
+    	document.documentElement.scrollTop = 0; // For Chrome, Firefox, IE and Opera
+	} 
+</script>
+		</body>
+</html>
