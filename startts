@@ -1,6 +1,0 @@
-#!/bin/bash
-while true
-do
-/home/$USER/urban/ts/ts +set fs_game q3ut4 +set fs_basepath /home/$USER/urban/ts/ +set fs_homepath /home/$USER/urban/ts/ +set dedicated 2 +set net_port 1337 +set com_hunkmegs 512 +exec ts.cfg
-echo "server crashed on `date`" > ts_crash.txt
-done
