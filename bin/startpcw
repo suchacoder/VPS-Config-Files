@@ -1,0 +1,6 @@
+#!/bin/bash
+while true
+do
+/home/$USER/urban/pcw/pcw +set fs_game q3ut4 +set fs_basepath /home/$USER/urban/pcw +set fs_homepath /home/$USER/urban/pcw +set dedicated 2 +set net_port 1339 +set com_hunkmegs 512 +exec config.cfg
+echo "server crashed on `date`" > pcw_crash.txt
+done

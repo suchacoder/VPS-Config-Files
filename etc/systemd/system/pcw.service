@@ -10,8 +10,8 @@ After=network.target
 
 [Service]
 User=chuck
-WorkingDirectory=/home/chuck/
-ExecStart=/home/chuck/startpcw
+WorkingDirectory=/home/chuck/bin/
+ExecStart=/home/chuck/bin/startpcw
 StandardOutput=null
 Type=simple
 Restart=always

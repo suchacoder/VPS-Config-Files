@@ -9,6 +9,8 @@
 
 05 08 * * * env - `cat ~/cronenv` /bin/sh
 
+09 08 * * * /home/chuck/bin/backup
+
 * 09 * * * /bin/echo " " > /home/$USER/urban/ts/q3ut4/games.log
 
 01 09 * * * /bin/echo " " > /home/$USER/urban/pcw/q3ut4/games.log

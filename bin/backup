@@ -1,0 +1,5 @@
+#!/bin/sh
+DIR=`date +%m-%d-%y`
+DEST=$HOME/db_backups/$DIR
+mkdir $DEST
+mongodump -h <host> --port <port> -d <database> -u <user> -p <password> -o $DEST
