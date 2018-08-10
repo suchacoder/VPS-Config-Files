@@ -1,0 +1,76 @@
+# Default server configuration
+#
+add_header X-Frame-Options SAMEORIGIN;
+add_header X-Content-Type-Options nosniff;
+add_header X-XSS-Protection "1; mode=block";
+add_header Strict-Transport-Security 'max-age=31536000; includeSubDomains; preload';
+
+# Force SSL
+server {
+	listen 80 default_server;
+	server_name mysite.tld;
+	return 301 https://$server_name$request_uri;
+	# Rewrite www to non-www
+	server_name  www.mysite.tld;
+	rewrite ^(.*) https://mysite.tld$1 permanent;
+	}
+
+# Open Server
+	server {
+	listen <port> ssl http2;
+	server_name mysite.tld;
+	root /www/gamerzone;
+
+# Add index.php to the list if you are using PHP
+	index index.html index.htm index.nginx-debian.html;
+
+# Locations
+	location / {
+	try_files $uri $uri/ =404;
+	}
+
+	location ~*  \.(jpg|jpeg|png|gif|ico|css|js)$ {
+    expires 7d;
+	}
+
+	location /demos {
+    autoindex on;
+    autoindex_exact_size off;
+    }
+	
+	location /.well-known/acme-challenge/  {
+	try_files $uri =404;
+	}
+	
+	location ^~ /forum {
+	proxy_set_header X-Real-IP $remote_addr;
+	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	proxy_set_header X-Forwarded-Proto $scheme;
+	proxy_set_header Host $http_host;
+	proxy_set_header X-NginX-Proxy true;
+
+	proxy_pass http://127.0.0.1:<port>;
+	proxy_redirect off;
+
+	# Socket.IO Support
+	proxy_http_version 1.1;
+	proxy_set_header Upgrade $http_upgrade;
+	proxy_set_header Connection "upgrade";
+    }
+	
+	}
+	
+	# SSL
+	#ssl on;
+	ssl_certificate /etc/letsencrypt/live/mysite.tld/fullchain.pem;
+	ssl_certificate_key /etc/letsencrypt/live/mysite.tld/privkey.pem;
+	ssl_trusted_certificate /etc/letsencrypt/live/mysite.tld/fullchain.pem;
+	ssl_stapling off;
+	ssl_stapling_verify off;
+	ssl_session_cache shared:SSL:50m;
+	ssl_session_timeout 10m;
+	ssl_prefer_server_ciphers on;
+	ssl_ciphers 'EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH';
+	ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+	resolver 108.61.10.10;
+	ssl_dhparam /etc/nginx/ssl/dhparams.pem;
