@@ -1,0 +1,15 @@
+{
+    "url": "https://mysite.tld/forum",
+	"use_port": "false",
+    "secret": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "database": "mongo",
+    "mongo": {
+        "host": "127.0.0.1",
+        "port": "27017",
+        "username": "user",
+        "password": "password",
+        "database": "nodebb",
+        "uri": ""
+    },
+    "port": "4567"
+}
