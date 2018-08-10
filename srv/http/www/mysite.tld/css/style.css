@@ -28,6 +28,90 @@ em {
 	color: #c9aeff;
 }
 
+#guelcam {
+	vertical-align: top;
+	background-image: url("/background/urban_1.jpg");
+	background-repeat: no-repeat;
+	background-size: 100% 100%;
+	text-align: center;
+	padding: 26vw 2em;
+	font-weight: bold;
+	font-size: 35px;
+	font-style: normal;
+	font-family: "Gloria Hallelujah";
+	color: #f2f2f2;
+}
+
+#forum {
+	vertical-align: bottom;
+	background-image: url("/background/forum.jpg");
+	background-repeat: no-repeat;
+	background-size: 100% 100%;
+	text-align: center;
+	padding: 26vw 2em;
+}
+
+#videos {
+	vertical-align: bottom;
+	background-image: url("/background/urban_2.jpg");
+	background-repeat: no-repeat;
+	background-size: 100% 100%;
+	text-align: center;
+	padding: 26vw 2em;
+}
+
+#demos {
+	vertical-align: bottom;
+	background-image: url("/background/urban_3.jpg");
+	background-repeat: no-repeat;
+	background-size: 100% 100%;
+	text-align: center;
+	padding: 26vw 2em;
+}
+
+#contact {
+	vertical-align: bottom;
+	background-image: url("/background/urban_4.jpg");
+	background-repeat: no-repeat;
+	background-size: 100% 100%;
+	text-align: center;
+	padding: 26vw 2em;
+}
+
+#donate {
+    vertical-align: bottom;
+    background-image: url("/background/donate.jpg");
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    text-align: center;
+    padding: 26vw 2em;
+	font-weight: bold;
+	font-size: 35px;
+	font-style: normal;
+	font-family: "Roboto";
+	color: #c1e436;
+}
+
+#top {
+    display: none; /* Hidden by default */
+    position: fixed; /* Fixed/sticky position */
+    bottom: 20px; /* Place the button at the bottom of the page */
+    right: 30px; /* Place the button 30px from the right */
+    z-index: 99; /* Make sure it does not overlap */
+    border: none; /* Remove borders */
+    outline: none; /* Remove outline */
+    background-color: #ea5965; /* Set a background color */
+    color: white; /* Text color */
+    cursor: pointer; /* Add a mouse pointer on hover */
+    padding: 15px; /* Some padding */
+    border-radius: 10px; /* Rounded corners */
+    font-size: 18px; /* Increase font size */
+}
+
+#top:hover {
+    background-color: #c9aeff; /* Add a violet background on hover */
+}
+
 /* Add a black background color to the top navigation */
 .topnav {
     background-color: #191d26;
@@ -58,6 +142,47 @@ em {
 .topnav a.active {
     background-color: #4CAF50;
     color: white;
+}
+
+.forumbutton {
+  display: inline-block;
+  border-radius: 4px;
+  background-color: #ea5965;
+  border: none;
+  color: #FFFFFF;
+  text-align: center;
+  font-size: 28px;
+  padding: 20px;
+  width: 200px;
+  transition: all 0.5s;
+  cursor: pointer;
+  margin: 5px;
+  text-decoration: none;
+}
+
+.forumbutton span {
+  cursor: pointer;
+  display: inline-block;
+  position: relative;
+  transition: 0.5s;
+}
+
+.forumbutton span:after {
+  content: '\00bb';
+  position: absolute;
+  opacity: 0;
+  top: 0;
+  right: -20px;
+  transition: 0.5s;
+}
+
+.forumbutton:hover span {
+  padding-right: 25px;
+}
+
+.forumbutton:hover span:after {
+  opacity: 1;
+  right: 0;
 }
 
 .videobutton {
@@ -265,63 +390,43 @@ em {
   right: 0;
 }
 
-#guelcam {
-	vertical-align: top;
-	background-image: url("/background/urban_1.jpg");
-	background-repeat: no-repeat;
-	background-size: 100% 100%;
-	text-align: center;
-	padding: 26vw 2em;
-	font-weight: bold;
-	font-size: 35px;
-	font-style: normal;
-	font-family: "Gloria Hallelujah";
-	color: #f2f2f2;
+.donatebutton {
+  display: inline-block;
+  border-radius: 4px;
+  background-color: #ade46b;
+  border: none;
+  color: #FFFFFF;
+  text-align: center;
+  font-size: 28px;
+  padding: 20px;
+  width: 200px;
+  transition: all 0.5s;
+  cursor: pointer;
+  margin: 5px;
+  text-decoration: none;
 }
 
-#videos {
-	vertical-align: bottom;
-	background-image: url("/background/urban_2.jpg");
-	background-repeat: no-repeat;
-	background-size: 100% 100%;
-	text-align: center;
-	padding: 26vw 2em;
+.donatebutton span {
+  cursor: pointer;
+  display: inline-block;
+  position: relative;
+  transition: 0.5s;
 }
 
-#demos {
-	vertical-align: bottom;
-	background-image: url("/background/urban_3.jpg");
-	background-repeat: no-repeat;
-	background-size: 100% 100%;
-	text-align: center;
-	padding: 26vw 2em;
+.donatebutton span:after {
+  content: '\00bb';
+  position: absolute;
+  opacity: 0;
+  top: 0;
+  right: -20px;
+  transition: 0.5s;
 }
 
-#contact {
-	vertical-align: bottom;
-	background-image: url("/background/urban_4.jpg");
-	background-repeat: no-repeat;
-	background-size: 100% 100%;
-	text-align: center;
-	padding: 26vw 2em;
+.donatebutton:hover span {
+  padding-right: 25px;
 }
 
-#top {
-    display: none; /* Hidden by default */
-    position: fixed; /* Fixed/sticky position */
-    bottom: 20px; /* Place the button at the bottom of the page */
-    right: 30px; /* Place the button 30px from the right */
-    z-index: 99; /* Make sure it does not overlap */
-    border: none; /* Remove borders */
-    outline: none; /* Remove outline */
-    background-color: #ea5965; /* Set a background color */
-    color: white; /* Text color */
-    cursor: pointer; /* Add a mouse pointer on hover */
-    padding: 15px; /* Some padding */
-    border-radius: 10px; /* Rounded corners */
-    font-size: 18px; /* Increase font size */
-}
-
-#top:hover {
-    background-color: #c9aeff; /* Add a violet background on hover */
+.donatebutton:hover span:after {
+  opacity: 1;
+  right: 0;
 }
