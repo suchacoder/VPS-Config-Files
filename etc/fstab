@@ -1,0 +1,3 @@
+# Nginx
+tmpfs   /srv/http/run   tmpfs   gid=33,uid=33,rw,noexec,relatime,size=1024k   0       0
+tmpfs   /srv/http/tmp   tmpfs   gid=33,uid=33,rw,noexec,relatime,size=102400k 0       0
