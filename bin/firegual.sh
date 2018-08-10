@@ -49,9 +49,9 @@ IPSET=/sbin/ipset
 
 # VARs
 IFACE="ens3"
-ADMIN="0.0.0.0/0"
-SSHPORT="22"
-DNS_SERVER="8.8.8.8,8.8.4.4"
+ADMIN="181.21.0.0/16"
+SSHPORT="44555"
+DNS_SERVER="108.61.10.10"
 PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
 IPSET_HOSTS="104.16.37.47,104.16.38.47,104.20.4.21,104.20.5.21,138.201.14.212,151.101.4.133,185.21.103.31,188.40.39.38,199.188.221.36,208.70.186.167,209.124.55.40"
 URTPORTS="1337,1339"
@@ -60,8 +60,8 @@ TS3_TCP_PORTS="10011,30033"
 TS3_UDP_PORT="9987"
 TS3_TCP6_PORTS="10011,30033"
 TS3_UDP6_PORT="9987"
-HTTP_PORTS="80"
-TCP_SERVICES="53,80,10011,30033,22"
+HTTP_PORTS="80,443"
+TCP_SERVICES="53,80,443,4567,10011,30033,44555"
 UDP_SERVICES="53,1337,1339,9987"
 
 echo "\e[32mEnabling Firewall..."
@@ -233,8 +233,27 @@ $IPT -A OUTPUT -o $IFACE -p tcp -m multiport --sports $TS3_TCP_PORTS -m conntrac
 
 # Allow HTTP
 echo "\e[32mAllowing \e[33mHTTP... "
-$IPT -A INPUT -i $IFACE -p tcp --dport $HTTP_PORTS -m conntrack --ctstate NEW -j ACCEPT -m comment --comment "ACCEPT INC HTTP"
-$IPT -A OUTPUT -o $IFACE -p tcp --sport $HTTP_PORTS -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT OUT HTTP"
+$IPT -A INPUT -i $IFACE -p tcp -m multiport --dports $HTTP_PORTS -m conntrack --ctstate NEW -j ACCEPT -m comment --comment "ACCEPT INC HTTP"
+$IPT -A OUTPUT -o $IFACE -p tcp -m multiport --sports $HTTP_PORTS -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT OUT HTTP"
+
+# Allow Nodebb
+echo "\e[32mAllowing \e[33mNodebb... "
+$IPT -A INPUT -i $IFACE -p tcp --dport $NODEBB_PORT -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT INC NODEBB"
+$IPT -A OUTPUT -o $IFACE -p tcp --sport $NODEBB_PORT -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT OUT NODEBB"
+
+# Allow Nodebb to Github OUT
+echo "\e[32mAllowing \e[33mNodebb Github OUT and INC"
+$IPT -A OUTPUT -o $IFACE -p tcp -m conntrack --ctstate NEW,ESTABLISHED -d 192.30.253.116,192.30.253.117 --dport 443 -j ACCEPT -m comment --comment "ACCEPT OUT GITHUB"
+$IPT -A INPUT -i $IFACE -p tcp -m conntrack --ctstate ESTABLISHED -s 192.30.253.116,192.30.253.117 --sport 443 -j ACCEPT -m comment --comment "ACCEPT INC GITHUB"
+
+# Allow Nodebb Pluggin OUT
+echo "\e[32mAllowing \e[33mNodebb... Pluggin OUT and INC"
+$IPT -A OUTPUT -o $IFACE -p tcp -m conntrack --ctstate NEW,ESTABLISHED -d 159.203.9.60 --dport 443 -j ACCEPT -m comment --comment "ACCEPT OUT PLUGGIN"
+$IPT -A INPUT -i $IFACE -p tcp -m conntrack --ctstate ESTABLISHED -s 159.203.9.60 --sport 443 -j ACCEPT -m comment --comment "ACCEPT INC PLUGGIN"
+
+# Allow rsync from a specific network
+#$IPT -A INPUT -i $IFACE -p tcp -s 192.168.101.0/24 --dport 873 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+#$IPT -A OUTPUT -o $IFACE -p tcp --sport 873 -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 # Allow Echo Request and Reply
 echo "\e[32mAllow \e[33mecho requests and reply..."
@@ -287,10 +306,6 @@ $IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type timestamp-request -m limit -
 $IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type address-mask-request -j DROP -m comment --comment "DROP SMURF ATTACK"
 $IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type timestamp-request -j DROP -m comment --comment "DROP SMURF ATTACK"
 $IPT -A INPUT -i $IFACE -p icmp -j DROP
-
-# Allow rsync from a specific network
-#$IPT -A INPUT -i $IFACE -p tcp -s 192.168.101.0/24 --dport 873 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-#$IPT -A OUTPUT -o $IFACE -p tcp --sport 873 -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 # LOGGING
 echo "\e[33mCreating \e[36mLOGGING \e[33mchain..."
