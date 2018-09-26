@@ -1,0 +1,20 @@
+[Unit]
+Description=NodeBB
+Documentation=https://docs.nodebb.org
+After=system.slice multi-user.target mongod.service
+
+[Service]
+Type=forking
+User=$USER
+
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=nodebb
+
+WorkingDirectory=/path/to/nodebb
+PIDFile=/path/to/nodebb/pidfile
+ExecStart=/usr/bin/env node loader.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
