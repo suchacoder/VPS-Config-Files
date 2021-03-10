@@ -1,0 +1,11 @@
+let g:netrw_dirhistmax  =10
+let g:netrw_dirhistcnt =9
+let g:netrw_dirhist_9='/home/curiousx/fotos2020'
+let g:netrw_dirhist_8='/home/curiousx/tmp'
+let g:netrw_dirhist_7='/home/curiousx/coro'
+let g:netrw_dirhist_6='/mnt/urtmapping/q3ut4/textures'
+let g:netrw_dirhist_5='/mnt/urtmapping/q3ut4/sound'
+let g:netrw_dirhist_4='/home/curiousx/youtubedl/funny/besos'
+let g:netrw_dirhist_3='/mnt/gta'
+let g:netrw_dirhist_2='/home/curiousx'
+let g:netrw_dirhist_1='/opt/urbanterror/q3ut4/demos'
