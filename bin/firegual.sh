@@ -43,26 +43,22 @@ echo "\e[37m              8>                                       \e[33mFun*T|C
 # Logging blocked packages
 
 # Executables
-IPT=/sbin/iptables
-IPT6=/sbin/ip6tables
-IPSET=/sbin/ipset
+IPT=$(which iptables)
+IPT6=$(which ip6tables)
+IPSET=$(which ipset)
 
 # VARs
-IFACE="ens3"
-ADMIN="181.21.0.0/16"
-SSHPORT="44555"
-DNS_SERVER="108.61.10.10"
+IFACE="eth0"
+ADMIN="181.191.0.0/16"
+SSHPORT="4949"
+OPENVPNPORT="1194"
+DNS_SERVER="204.152.204.100,204.152.204.10"
 PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
 IPSET_HOSTS="104.16.37.47,104.16.38.47,104.20.4.21,104.20.5.21,138.201.14.212,151.101.4.133,185.21.103.31,188.40.39.38,199.188.221.36,208.70.186.167,209.124.55.40"
-URTPORTS="1337,1339"
-AUTH_MASTER_PORTS="27952,27900"
-TS3_TCP_PORTS="10011,30033"
-TS3_UDP_PORT="9987"
-TS3_TCP6_PORTS="10011,30033"
-TS3_UDP6_PORT="9987"
-HTTP_PORTS="80,443"
-TCP_SERVICES="53,80,443,4567,10011,30033,44555"
-UDP_SERVICES="53,1337,1339,9987"
+TCP_SERVICES="4949"
+UDP_SERVICES="1194"
+#HTTP_PORTS="80,443"
+#WIREGUARDPORT="51820"
 
 echo "\e[32mEnabling Firewall..."
 
@@ -100,13 +96,13 @@ $IPT -A STATEFUL -m conntrack --ctstate NEW -i !$IFACE -j ACCEPT -m comment --co
 
 # All tcp connections should begin with syn
 echo "\e[33mLogging and Forcing connections to begin with SYN..."
-$IPT -A INPUT -i $IFACE -p tcp ! --syn -m conntrack --ctstate NEW -m limit --limit 1/sec -j LOG --log-prefix "iptables [NON SYN CONN]"
+$IPT -A INPUT -i $IFACE -p tcp ! --syn -m conntrack --ctstate NEW -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[NON SYN CONN]: "
 $IPT -A INPUT -i $IFACE -p tcp ! --syn -m conntrack --ctstate NEW -j DROP -m comment --comment "DROP NON SYN CONN"
 
 # LOG and DROP all packets that are going to broadcast, multicast or anycast address
-$IPT -A INPUT -i $IFACE -m addrtype --dst-type BROADCAST -m limit --limit 1/sec -j LOG --log-prefix "iptables [BROADCAST SPOOF]: "
-$IPT -A INPUT -i $IFACE -m addrtype --dst-type MULTICAST -m limit --limit 1/sec -j LOG --log-prefix "iptables [MULTICAST SPOOF]: "
-$IPT -A INPUT -i $IFACE -m addrtype --dst-type ANYCAST -m limit --limit 1/sec -j LOG --log-prefix "iptables [ANYCAST SPOOF]: "
+$IPT -A INPUT -i $IFACE -m addrtype --dst-type BROADCAST -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[BROADCAST SPOOF]: "
+$IPT -A INPUT -i $IFACE -m addrtype --dst-type MULTICAST -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[MULTICAST SPOOF]: "
+$IPT -A INPUT -i $IFACE -m addrtype --dst-type ANYCAST -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[ANYCAST SPOOF]: "
 $IPT -A INPUT -i $IFACE -m addrtype --dst-type BROADCAST -j DROP
 $IPT -A INPUT -i $IFACE -m addrtype --dst-type MULTICAST -j DROP
 $IPT -A INPUT -i $IFACE -m addrtype --dst-type ANYCAST -j DROP
@@ -152,26 +148,17 @@ done
 # Enable IPSET blacklists - logs blocked attempts and drop packets
 echo "\e[32mEnabling \e[33mIPSET 'blacklist'..."
 $IPSET restore < /etc/ipset-blacklist/ip-blacklist.restore
-$IPT -A INPUT -i $IFACE -m set --match-set blacklist src -m limit --limit 1/sec -j LOG --log-prefix "iptables [IPSET] Blacklist: "
+$IPT -A INPUT -i $IFACE -m set --match-set blacklist src -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[IPSET] Blacklist: "
 $IPT -A INPUT -i $IFACE -m set --match-set blacklist src -j DROP -m comment --comment "DROP IPSET BLACKLIST"
 
 # LOG and DROP script kiddies scanning ports
 echo "\e[32mActivating \e[33mport scanner detector..."
 $IPSET -N bad_guys iphash
-$IPT -A INPUT -i $IFACE -p tcp -m set --match-set bad_guys src -m limit --limit 1/sec -j LOG --log-prefix "iptables [IPSET] TCP bad_guy: "
-$IPT -A INPUT -i $IFACE -p udp -m set --match-set bad_guys src -m limit --limit 1/sec -j LOG --log-prefix "iptables [IPSET] UDP bad_guy: "
-$IPT -A INPUT -i $IFACE -p tcp -m multiport ! --dports $TCP_SERVICES -m conntrack --ctstate NEW -j SET --add-set bad_guys src -m comment --comment "TCP PORT SCAN"
-$IPT -A INPUT -i $IFACE -p udp -m multiport ! --dports $UDP_SERVICES -j SET --add-set bad_guys src -m comment --comment "UDP PORT SCAN"
-$IPT -A INPUT -m set --match-set bad_guys src -j DROP -m comment --comment "DROP PORT SCANNER"
-
-# Rate Limit
-#echo "\e[32mEnabling \e[33mRate Limiter"
-#$IPT -N RATE_LIMIT
-#$IPT -A INPUT -i $IFACE -p all -m conntrack --ctstate NEW -j RATE_LIMIT
-#$IPT -A RATE_LIMIT -m limit --limit 50/sec --limit-burst 20 --jump ACCEPT -m comment --comment "GLOBAL CONN LIMIT"
-#$IPT -A RATE_LIMIT -m hashlimit --hashlimit-mode srcip --hashlimit-upto 50/sec --hashlimit-burst 20 --hashlimit-name conn_rate_limit -j ACCEPT -m comment --comment "LIMIT PER IP"
-#$IPT -A RATE_LIMIT -m limit --limit 1/sec -j LOG --log-prefix "iptables [RATE LIMIT] exceed: "
-#$IPT -A RATE_LIMIT -j DROP
+$IPT -A INPUT -i $IFACE -p tcp -m set --match-set bad_guys src -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[IPSET] TCP bad_guy: "
+$IPT -A INPUT -i $IFACE -p udp -m set --match-set bad_guys src -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[IPSET] UDP bad_guy: "
+$IPT -A INPUT -i $IFACE -p tcp -m multiport ! --dports $TCP_SERVICES -m conntrack --ctstate NEW -j SET --add-set bad_guys src -m comment --comment "[TCP PORT SCAN]"
+$IPT -A INPUT -i $IFACE -p udp -m multiport ! --dports $UDP_SERVICES -j SET --add-set bad_guys src -m comment --comment "[UDP PORT SCAN]"
+$IPT -A INPUT -m set --match-set bad_guys src -j DROP -m comment --comment "[DROP PORT SCANNER]"
 
 # Admin IPs Version 2
 echo "\e[32mEnabling \e[33madmin's IP..."
@@ -183,8 +170,8 @@ $IPT -A OUTPUT -d $ADMIN -j ACCEPT -m comment --comment "ADMIN's IP"
 # Beyond a burst of 100 connections we log at up 1 attempt per second to prevent filling of logs
 $IPT -N SSHBRUTE
 $IPT -A SSHBRUTE -m recent --name SSH --set
-$IPT -A SSHBRUTE -m conntrack --ctstate NEW -m recent --name SSH --update --seconds 60 --hitcount 5 -m limit --limit 1/second --limit-burst 100 -j LOG --log-prefix "iptables [SSH] Attempt: "
-$IPT -A SSHBRUTE -m conntrack --ctstate NEW -m recent --name SSH --update --seconds 60 --hitcount 5 -j DROP -m comment --comment "SSH DROP DOS "
+$IPT -A SSHBRUTE -m conntrack --ctstate NEW -m recent --name SSH --update --seconds 60 --hitcount 5 -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[SSH] Attempt: "
+$IPT -A SSHBRUTE -m conntrack --ctstate NEW -m recent --name SSH --update --seconds 60 --hitcount 5 -j DROP -m comment --comment "[SSH DROP DOS]"
 $IPT -A SSHBRUTE -j ACCEPT -m comment --comment "ACCEPT SSH "
 
 # Allow SSH
@@ -192,34 +179,88 @@ echo "\e[32mAllowing \e[33mSSH... "
 $IPT -A INPUT -i $IFACE -p tcp -s $ADMIN --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT -m comment --comment "ACCEPT SSH"
 $IPT -A OUTPUT -o $IFACE -p tcp -d $ADMIN --sport $SSHPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT SSH"
 
-# Chain for preventing SSH brute-force attacks. Permits 10 new connections within 1 minutes from a single host
-# then drops incomming connections from that host we log at up 1 attempt per second to prevent filling of logs
-$IPT -N URTDOS
-$IPT -A URTDOS -m recent --name URT --set
-$IPT -A URTDOS -m conntrack --ctstate NEW -m recent --name URT --update --seconds 60 --hitcount 10 -m limit --limit 1/sec -j LOG --log-prefix "iptables [URT DOS]: "
-$IPT -A URTDOS -m conntrack --ctstate NEW -m recent --name URT --update --seconds 60 --hitcount 10 -j DROP -m comment --comment "DROP UrT DOS"
-$IPT -A URTDOS -j ACCEPT -m comment --comment "ACCEPT URT"
+# OpenVPN and Wireguard
+# Masquerade outgoing traffic
+echo "\e[32mMASQUERADING \e[33mOpenVPN and Wireguard... "
+$IPT -t nat -A POSTROUTING -o eth0 -j MASQUERADE -m comment --comment "MASQUARADE out IP eth0"
+$IPT -t nat -A POSTROUTING -o tun0 -j MASQUERADE -m comment --comment "MASQUARADE out IP tun0"
+#$IPT -t nat -A POSTROUTING -o wg0 -j MASQUERADE -m comment --comment "MASQUARADE out IP wg0"
 
-# Log and allow UrT
-echo "\e[36mLogging \e[33mand \e[32mallowing \e[33mUrT connections..."
-#$IPT -A INPUT -i $IFACE -p udp -m multiport --dports $URTPORTS -m limit --limit 1/sec -j LOG --log-level 7 --log-prefix "iptables [UrT] Connections: "
-$IPT -A INPUT -i $IFACE -p udp -m multiport --dports $URTPORTS -j ACCEPT -m comment --comment "ACCEPT INC UrT"
-$IPT -A OUTPUT -o $IFACE -p udp -m multiport --sports $URTPORTS -j ACCEPT -m comment --comment "ACCEPT OUT UrT"
+# Allow OpenVPN and Wireguard return traffic
+$IPT -A INPUT -i eth0 -p udp -m multiport --dports $OPENVPNPORT -m conntrack --ctstate NEW,RELATED,ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT INC OpenVPN eth0"
+$IPT -A INPUT -i tun0 -p udp --dport $OPENVPNPORT -m conntrack --ctstate NEW,RELATED,ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT INC OpenVPN tun0"
+#$IPT -A INPUT -i wg0 -p udp --dport $WIREGUARDPORT -m conntrack --ctstate NEW,RELATED,ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT INC OpenVPN wg0"
+$IPT -A OUTPUT -o eth0 -p udp --sport $OPENVPNPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT OUT OpenVPN eth0"
+$IPT -A OUTPUT -o tun0 -p udp --sport $OPENVPNPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT OUT OpenVPN tun0"
+#$IPT -A OUTPUT -o wg0 -p udp --sport $WIREGUARDPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT OUT OpenVPN wg0"
 
-echo "\e[32mAllowing \e[33mauth and masterlist..."
-$IPT -A INPUT -i $IFACE -p udp -m multiport --sports $AUTH_MASTER_PORTS -j ACCEPT -m comment --comment "INC UrT AUTH AND MASTER"
-$IPT -A OUTPUT -o $IFACE -p udp -m multiport --dports $AUTH_MASTER_PORTS -j ACCEPT -m comment --comment "OUT UrT AUTH AND MASTER"
+# Forward everything
+$IPT -A FORWARD -j ACCEPT -m comment --comment "FORWARDING all"
 
-echo "\e[31mDROP \e[33mGameservers"
-$IPT -A INPUT -i $IFACE -p udp --sport 27960 -j DROP -m comment --comment "DROP INC GAMESERVER"
-#$IPT -A OUTPUT -o $IFACE -p udp --dport 27960 -j ACCEPT -m comment --comment "ALLOW OUT GAMESERVER"
+# Allow Echo Request and Reply
+echo "\e[32mAllow \e[33mecho requests and reply..."
+$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type echo-request -m limit --limit 1/sec -j ACCEPT -m comment --comment "ACCEPT ICMP REQUEST"
+$IPT -A OUTPUT -o $IFACE -p icmp -m icmp --icmp-type echo-reply -j ACCEPT -m comment --comment "ACCEPT ICMP REPLY"
 
-# Allow Teamspeak
-echo "\e[32mAllowing \e[33mTeamspeak... "
-$IPT -A INPUT -i $IFACE -p udp --dport $TS3_UDP_PORT -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT -m comment --comment "TS3 INC UDP PORT"
-$IPT -A OUTPUT -o $IFACE -p udp --sport $TS3_UDP_PORT -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "TS3 OUT UDP PORT"
-$IPT -A INPUT -i $IFACE -p tcp -m multiport --dports $TS3_TCP_PORTS -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT -m comment --comment "TS3 INC TCP PORTS"
-$IPT -A OUTPUT -o $IFACE -p tcp -m multiport --sports $TS3_TCP_PORTS -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "TS3 OUT TCP PORTS"
+# LOG and DROP INVALID packets
+echo "\e[31mDropping \e[33mINVALID packets... "
+$IPT -A INPUT -i $IFACE -p tcp -m conntrack --ctstate INVALID -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[INVALID PACKETS]: "
+$IPT -A INPUT -i $IFACE -m conntrack --ctstate INVALID -j DROP -m comment --comment "DROP INVALID PACKETS"
+$IPT -A OUTPUT -o $IFACE -m conntrack --ctstate INVALID -j DROP -m comment --comment "DROP INVALID PACKETS"
+$IPT -A FORWARD -m conntrack --ctstate INVALID -j DROP -m comment --comment "DROP INVALID PACKETS"
+
+# Drop all packets to port 111 except those from localhost
+echo "\e[31mRejecting \e[33mall packets to port 111 excecpt packets from \e[32mlocalhost... "
+$IPT -A INPUT ! -s 127.0.0.0/8 -p tcp --dport 111 -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[LOCAL SPOOFED]: "
+$IPT -A INPUT ! -s 127.0.0.0/8 -p tcp --dport 111 -j REJECT --reject-with tcp-reset -m comment --comment "REJECT SPOOF"
+
+# kill off identd quick
+echo "\e[31mKilling \e[33midentd..."
+$IPT -A INPUT -i $IFACE -p tcp --dport 113 -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[IDENTD]: "
+$IPT -A INPUT -i $IFACE -p tcp --dport 113 -j REJECT --reject-with tcp-reset -m comment --comment "REJECT IDENTD"
+
+# ICMP packets should fit in a Layer 2 frame, thus they should never be fragmented
+# Fragmented icmp packets are a typical sign of a denial of service attack
+echo "\e[36mLOG \e[33mand \e[31mDROP \e[33mfragmented icmp packets..."
+$IPT -A INPUT -i $IFACE -p icmp --fragment -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[FRAGMENTED ICMP]: "
+$IPT -A INPUT -i $IFACE -p icmp --fragment -j DROP -m comment --comment "DROP FRAGMENTED ICMP"
+
+# Blocking excessive syn packet
+echo "\e[31mBlocking \e[33mSYN packets..."
+$IPT -N SYN_FLOOD
+$IPT -A INPUT -p tcp --syn -j SYN_FLOOD
+$IPT -A SYN_FLOOD -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[SYN FLOOD]: "
+$IPT -A SYN_FLOOD -j DROP -m comment --comment "DROP EXCESSIVE SYN"
+
+# Chain for preventing ping flooding - up to 2 pings per second from a single
+# source, again with log limiting. Also prevents us from ICMP REPLY flooding
+# some victim when replying to ICMP ECHO from a spoofed source.
+echo "\e[31mDROP \e[33mIMCP FLOOD..."
+$IPT -N ICMPFLOOD
+$IPT -A ICMPFLOOD -m recent --set --name ICMP --rsource
+$IPT -A ICMPFLOOD -m recent --update --seconds 1 --hitcount 2 --name ICMP --rsource --rttl -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[ICMP FLOOD]: "
+$IPT -A ICMPFLOOD -m recent --update --seconds 1 --hitcount 2 --name ICMP --rsource --rttl -j DROP -m comment --comment "DROP ICMP FLOOD"
+
+# Stop smurf attacks
+echo "\e[32mEnabling \e[33msmurf \e[31mattack \e[33mdetector..."
+$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type address-mask-request -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[SMURF MASK]: "
+$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type timestamp-request -m limit --limit 1/sec --limit-burst 2 -j LOG --log-prefix "[SMURF TIMESTAMP]: "
+$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type address-mask-request -j DROP -m comment --comment "DROP SMURF ATTACK"
+$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type timestamp-request -j DROP -m comment --comment "DROP SMURF ATTACK"
+$IPT -A INPUT -i $IFACE -p icmp -j DROP
+
+# Rate Limit
+#echo "\e[32mEnabling \e[33mRate Limiter"
+#$IPT -N RATE_LIMIT
+#$IPT -A INPUT -i $IFACE -p all -m conntrack --ctstate NEW -j RATE_LIMIT
+#$IPT -A RATE_LIMIT -m limit --limit 50/sec --limit-burst 20 --jump ACCEPT -m comment --comment "GLOBAL CONN LIMIT"
+#$IPT -A RATE_LIMIT -m hashlimit --hashlimit-mode srcip --hashlimit-upto 50/sec --hashlimit-burst 20 --hashlimit-name conn_rate_limit -j ACCEPT -m comment --comment "LIMIT PER IP"
+#$IPT -A RATE_LIMIT -m limit --limit 1/sec -j LOG --log-prefix "iptables [RATE LIMIT] exceed: "
+#$IPT -A RATE_LIMIT -j DROP
+
+# Allow rsync from a specific network
+#$IPT -A INPUT -i $IFACE -p tcp -s 192.168.101.0/24 --dport 873 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+#$IPT -A OUTPUT -o $IFACE -p tcp --sport 873 -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 # DOS HTTP Attack prevention
 # Need re-evaluation, the current rates do not allow for WordPress image upload features
@@ -231,134 +272,13 @@ $IPT -A OUTPUT -o $IFACE -p tcp -m multiport --sports $TS3_TCP_PORTS -m conntrac
 #$IPT -A INPUT -i $IFACE -p tcp --dport 443 -m hashlimit --hashlimit-upto 80/min --hashlimit-burst 800 --hashlimit-mode srcip --hashlimit-name https -j ACCEPT
 #$IPT -A INPUT -i $IFACE -p tcp --dport 443 -j ACCEPT
 
-# Allow HTTP
-echo "\e[32mAllowing \e[33mHTTP... "
-$IPT -A INPUT -i $IFACE -p tcp -m multiport --dports $HTTP_PORTS -m conntrack --ctstate NEW -j ACCEPT -m comment --comment "ACCEPT INC HTTP"
-$IPT -A OUTPUT -o $IFACE -p tcp -m multiport --sports $HTTP_PORTS -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT OUT HTTP"
-
-# Allow Nodebb
-echo "\e[32mAllowing \e[33mNodebb... "
-$IPT -A INPUT -i $IFACE -p tcp --dport $NODEBB_PORT -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT INC NODEBB"
-$IPT -A OUTPUT -o $IFACE -p tcp --sport $NODEBB_PORT -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT OUT NODEBB"
-
-# Allow Nodebb to Github OUT
-echo "\e[32mAllowing \e[33mNodebb Github OUT and INC"
-$IPT -A OUTPUT -o $IFACE -p tcp -m conntrack --ctstate NEW,ESTABLISHED -d 192.30.253.116,192.30.253.117 --dport 443 -j ACCEPT -m comment --comment "ACCEPT OUT GITHUB"
-$IPT -A INPUT -i $IFACE -p tcp -m conntrack --ctstate ESTABLISHED -s 192.30.253.116,192.30.253.117 --sport 443 -j ACCEPT -m comment --comment "ACCEPT INC GITHUB"
-
-# Allow Nodebb Pluggin OUT
-echo "\e[32mAllowing \e[33mNodebb... Pluggin OUT and INC"
-$IPT -A OUTPUT -o $IFACE -p tcp -m conntrack --ctstate NEW,ESTABLISHED -d 159.203.9.60 --dport 443 -j ACCEPT -m comment --comment "ACCEPT OUT PLUGGIN"
-$IPT -A INPUT -i $IFACE -p tcp -m conntrack --ctstate ESTABLISHED -s 159.203.9.60 --sport 443 -j ACCEPT -m comment --comment "ACCEPT INC PLUGGIN"
-
-# Allow rsync from a specific network
-#$IPT -A INPUT -i $IFACE -p tcp -s 192.168.101.0/24 --dport 873 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-#$IPT -A OUTPUT -o $IFACE -p tcp --sport 873 -m conntrack --ctstate ESTABLISHED -j ACCEPT
-
-# Allow Echo Request and Reply
-echo "\e[32mAllow \e[33mecho requests and reply..."
-$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type echo-request -m limit --limit 1/second -j ACCEPT -m comment --comment "ACCEPT ICMP REQUEST"
-$IPT -A OUTPUT -o $IFACE -p icmp -m icmp --icmp-type echo-reply -j ACCEPT -m comment --comment "ACCEPT ICMP REPLY"
-
-# LOG and DROP INVALID packets
-echo "\e[31mDropping \e[33mINVALID packets... "
-$IPT -A INPUT -i $IFACE -p tcp -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "iptables [INVALID PACKETS]: "
-$IPT -A INPUT -i $IFACE -m conntrack --ctstate INVALID -j DROP -m comment --comment "DROP INVALID PACKETS"
-$IPT -A OUTPUT -o $IFACE -m conntrack --ctstate INVALID -j DROP -m comment --comment "DROP INVALID PACKETS"
-$IPT -A FORWARD -m conntrack --ctstate INVALID -j DROP -m comment --comment "DROP INVALID PACKETS"
-
-# Drop all packets to port 111 except those from localhost
-echo "\e[31mRejecting \e[33mall packets to port 111 excecpt packets from \e[32mlocalhost... "
-$IPT -A INPUT ! -s 127.0.0.0/8 -p tcp --dport 111 -m limit --limit 1/sec -j LOG --log-prefix "iptables [LOCAL SPOOFED]: "
-$IPT -A INPUT ! -s 127.0.0.0/8 -p tcp --dport 111 -j REJECT --reject-with tcp-reset -m comment --comment "REJECT SPOOF"
-
-# kill off identd quick
-echo "\e[31mKilling \e[33midentd..."
-$IPT -A INPUT -i $IFACE -p tcp --dport 113 -m limit --limit 1/sec -j LOG --log-prefix "iptables [IDENTD]: "
-$IPT -A INPUT -i $IFACE -p tcp --dport 113 -j REJECT --reject-with tcp-reset -m comment --comment "REJECT IDENTD"
-
-# ICMP packets should fit in a Layer 2 frame, thus they should never be fragmented
-# Fragmented icmp packets are a typical sign of a denial of service attack
-echo "\e[36mLOG \e[33mand \e[31mDROP \e[33mfragmented icmp packets..."
-$IPT -A INPUT -i $IFACE -p icmp --fragment -m limit --limit 1/sec -j LOG --log-prefix "iptables [FRAGMENTED ICMP]: "
-$IPT -A INPUT -i $IFACE -p icmp --fragment -j DROP -m comment --comment "DROP FRAGMENTED ICMP"
-
-# Blocking excessive syn packet
-echo "\e[31mBlocking \e[33mSYN packets..."
-$IPT -N SYN_FLOOD
-$IPT -A INPUT -p tcp --syn -j SYN_FLOOD
-$IPT -A SYN_FLOOD -m limit --limit 1/sec --limit-burst 1000 -j RETURN
-$IPT -A SYN_FLOOD -j DROP -m comment --comment "DROP EXCESSIVE SYN"
-
-# Chain for preventing ping flooding - up to 2 pings per second from a single
-# source, again with log limiting. Also prevents us from ICMP REPLY flooding
-# some victim when replying to ICMP ECHO from a spoofed source.
-echo "\e[31mDROP \e[33mIMCP FLOOD..."
-$IPT -N ICMPFLOOD
-$IPT -A ICMPFLOOD -m recent --set --name ICMP --rsource
-$IPT -A ICMPFLOOD -m recent --update --seconds 1 --hitcount 2 --name ICMP --rsource --rttl -m limit --limit 1/sec --limit-burst 1000 -j LOG --log-prefix "iptables [ICMP FLOOD]: "
-$IPT -A ICMPFLOOD -m recent --update --seconds 1 --hitcount 2 --name ICMP --rsource --rttl -j DROP -m comment --comment "DROP ICMP FLOOD"
-
-# Stop smurf attacks
-echo "\e[32mEnabling \e[33msmurf \e[31mattack \e[33mdetector..."
-$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type address-mask-request -m limit --limit 1/sec -j LOG --log-prefix "iptables [SMURF MASK]: "
-$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type timestamp-request -m limit --limit 1/sec -j LOG --log-prefix "iptables [SMURF TIMESTAMP]: "
-$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type address-mask-request -j DROP -m comment --comment "DROP SMURF ATTACK"
-$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type timestamp-request -j DROP -m comment --comment "DROP SMURF ATTACK"
-$IPT -A INPUT -i $IFACE -p icmp -j DROP
-
-# LOGGING
-echo "\e[33mCreating \e[36mLOGGING \e[33mchain..."
-$IPT -N LOGGING > /dev/null
-$IPT -F LOGGING
-$IPT -A INPUT -j LOGGING
-$IPT -A OUTPUT -j LOGGING
-$IPT -A LOGGING -p tcp -m limit --limit 1/sec -j LOG --log-level 4 --log-prefix "iptables [LOGGING] tcp: "
-$IPT -A LOGGING -p udp -m limit --limit 1/sec -j LOG --log-level 4 --log-prefix "iptables [LOGGING] udp: "
-$IPT -A LOGGING -p icmp -m limit --limit 1/sec -j LOG --log-level 4 --log-prefix "iptables [LOGGING] icmp: "
-$IPT -A LOGGING -p tcp -j DROP -m comment --comment "DROP LOGGING"
-$IPT -A LOGGING -p udp -j DROP -m comment --comment "DROP LOGGING"
-$IPT -A LOGGING -p icmp -j DROP -m comment --comment "DROP LOGGING"
-$IPT -A LOGGING -j DROP
-
-# Send spoofed packers to the LOGGING chain tobe processed and then droped
-echo "\e[32mEnabliing \e[33mSpoof \e[31mattack \e[33mdetector..."
-
-# These adresses are mostly used for LAN's, so if these would come to a WAN-only server, drop them
-$IPT -A INPUT -i $IFACE -s 10.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP LAN Spoof"
-$IPT -A INPUT -i $IFACE -s 127.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP LAN Spoof"
-$IPT -A INPUT -i $IFACE -s 169.254.0.0/16 -j LOGGING -m comment --comment "LOG and DROP LAN Spoof"
-$IPT -A INPUT -i $IFACE -s 172.16.0.0/12 -j LOGGING -m comment --comment "LOG and DROP LAN Spoof"
-$IPT -A INPUT -i $IFACE -s 192.168.0.0/16 -j LOGGING -m comment --comment "LOG and DROP LAN Spoof"
-
-# Reserved adresses and US comercial ips
-$IPT -A INPUT -i $IFACE -s 1.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-$IPT -A INPUT -i $IFACE -s 2.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-$IPT -A INPUT -i $IFACE -s 5.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-$IPT -A INPUT -i $IFACE -s 7.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-$IPT -A INPUT -i $IFACE -s 27.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-$IPT -A INPUT -i $IFACE -s 31.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-$IPT -A INPUT -i $IFACE -s 36.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-$IPT -A INPUT -i $IFACE -s 39.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-$IPT -A INPUT -i $IFACE -s 41.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-$IPT -A INPUT -i $IFACE -s 42.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-$IPT -A INPUT -i $IFACE -s 58.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-$IPT -A INPUT -i $IFACE -s 59.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-$IPT -A INPUT -i $IFACE -s 60.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-$IPT -A INPUT -i $IFACE -s 197.0.0.0/8 -j LOGGING -m comment --comment "LOG and DROP reserved adresses Spoof"
-
 # IPv6 rules
-
-# Blocking teamspeak TCP6 connections
-echo "\e[33mBlocking teamspeak TCP6 connections \e[33mpolicy..."
-$IPT6 -A INPUT -i $IFACE -p tcp -m multiport --dports $TS3_TCP6_PORTS -j DROP -m comment --comment "DROP TEAMSPEAK TCP"
-$IPT6 -A INPUT -i $IFACE -p udp --dport $TS3_UDP6_PORT -j DROP -m comment --comment "DROP TEAMSPEAK UDP"
 
 # All policies set to DROP
 echo "\e[33mSetting up \e[31mDROP \e[33mpolicy..."
 $IPT --policy INPUT DROP
 $IPT --policy OUTPUT DROP
-$IPT --policy FORWARD DROP
+$IPT --policy FORWARD ACCEPT
 
 # Script to block IPs reading a file, same scheme might be used for $blacklist or $whitelist IPs
 #if [ -f geo-ip-block.txt ]

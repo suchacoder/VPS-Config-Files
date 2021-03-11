@@ -2,7 +2,7 @@
 # ATTENTION: Remember to install 'sctrict' module using cpan
 use strict;
 use warnings;
-my @types = qw/filter/;
+my @types = qw/nat/;
 $SIG{INT} = sub{print "\e[?25h\e[u"; exit};
 print "\e[40;37m\e[2J\e[?25l";
 while (1) {

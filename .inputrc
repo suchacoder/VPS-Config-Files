@@ -35,6 +35,10 @@ set convert-meta off
 "\e[A": history-search-backward
 "\e[B": history-search-forward 
 
+# Fix for Tmux Ctrl arrow left and right
+"\e[1;5C": forward-word   # ctrl + right
+"\e[1;5D": backward-word  # ctrl + left
+
 # Fast word movement with Ctrl in xterm
 "\eOd": backward-word
 "\eOc": forward-word
