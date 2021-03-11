@@ -70,9 +70,14 @@ case "$TERM" in
     xterm-color) color_prompt=yes;;
 esac
 
-PATH=/bin:/usr/bin:/usr/local/bin:/sbin:/usr/sbin:/usr/games:/usr/local/games
+PATH=/home/$USER/bin:/bin:/usr/bin:/usr/local/bin:/sbin:/usr/sbin:/usr/games:/usr/local/games
 
 # Fortune and cowsay
 if [ -x /usr/games/cowsay -a -x /usr/games/fortune ]; then
    fortune | cowsay -f $(ls /usr/share/cowsay/cows/ | shuf -n1)
+fi
+
+# Tmux default session
+if [ -z "$TMUX" ]; then
+   tmux default          
 fi
