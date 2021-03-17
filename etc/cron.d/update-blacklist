@@ -1,3 +1,3 @@
 PATH=/home/chuck/bin:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 MAILTO=chuck
-30 09 * * *      root /home/chuck/bin/update-blacklist.sh /etc/ipset-blacklist/ipset-blacklist.conf
+
