@@ -1,0 +1,31 @@
+[Match]
+Name = wg0
+
+[Network]
+Address = 10.200.200.2/24
+Address = fd00::2/120
+
+[Route]
+Gateway = 10.200.200.1
+Destination = 10.200.200.0/24
+GatewayOnlink=true
+
+[Route]
+Gateway = fd00::1
+Destination = fd00::/120
+
+# Source policy routing,
+# route through w0 by default if comes from its IP
+[Route]
+Gateway = 10.200.200.1
+Table = 100
+[RoutingPolicyRule]
+From = 10.200.200.2
+Table = 100
+
+[Route]
+Gateway = fd00::1
+Table = 100
+[RoutingPolicyRule]
+From = fd00::2
+Table = 100g

@@ -1,0 +1,17 @@
+[NetDev]
+Name = wg0
+Kind = wireguard
+Description = Wireguard
+
+[WireGuard]
+PrivateKey = <private>
+
+[WireGuardPeer]
+PublicKey = <public>
+PresharedKey = <preshared>
+# Accept only the wireguard subnet, requeres masquerading for hosting
+AllowedIPs = 10.200.20.0/24, fd00::/120
+# Accept anything, unnecessary for non-server
+# AllowedIPs = 0.0.0.0/0, ::/0
+Endpoint = <endpoint>
+PersistentKeepalive = 250
