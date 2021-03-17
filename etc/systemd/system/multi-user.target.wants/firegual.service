@@ -1,0 +1,16 @@
+# don't forget to run:  systemctl daemon-reload
+
+[Unit]
+Description=Packet Filtering Framework
+DefaultDependencies=no
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "/home/chuck/bin/nerdgual.sh"
+ExecReload=/bin/sh -c "/home/chuck/bin/nerdgual.sh"
+ExecStop=/bin/sh -c "/home/chuck/bin/killgual.sh"
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
