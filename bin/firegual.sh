@@ -226,6 +226,14 @@ $IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type address-mask-request -j DROP
 $IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type timestamp-request -j DROP -m comment --comment "DROP SMURF ATTACK"
 $IPT -A INPUT -i $IFACE -p icmp -j DROP
 
+# Log incoming traffic in case some smart nerd got through all my sh!t
+echo "\e[32mEnabling INC logging..."
+$IPT -A INPUT -i $IFACE -m limit --limit 1/minute --limit-burst 3 -j LOG --log-prefix "[INC DEBUG]: "
+
+# Log outgoing traffic before dropping everything for debug purpose
+echo "\e[32mEnabling OUT logging..."
+$IPT -A OUTPUT -o $IFACE -m limit --limit 1/minute --limit-burst 3 -j LOG --log-prefix "[OUT DEBUG]: "
+
 # All policies set to DROP
 echo "\e[33mSetting up \e[31mDROP \e[33mpolicy..."
 $IPT --policy INPUT DROP
