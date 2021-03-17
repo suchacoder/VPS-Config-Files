@@ -16,13 +16,8 @@ PATH=/home/chuck/bin:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bi
 
 ### root's cron
 
+1 9 * * * /bin/rm /var/log/{alternatives.log.*,btmp.*,wtmp.*,dpkg.log.*,kern.log.*}
+
 * 10 * * * /sbin/shutdown -r +5
 
-
 ### chuck's cron 
-
-* 08 * * * env > ~/cronenv
-
-05 08 * * * env - `cat ~/cronenv` /bin/sh
-
-0 5 * * * /home/chuck/bin/update-blacklist.sh /etc/ipset-blacklist/ipset-blacklist.conf
