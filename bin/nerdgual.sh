@@ -16,7 +16,6 @@ DONT_LOG=""
 REJECT=DROP
 
 
-
 # iptables function
 # Used inplace of calling iptables directly or a variable pointing to iptables.
 #
@@ -52,8 +51,6 @@ iptables() {
 }
 
 
-
-
 echo "Configuring netfilter:"
 
 
@@ -74,8 +71,9 @@ $IPTABLES --policy OUTPUT ACCEPT
 
 # Create chains to reduce the number of rules each packet must traverse.
 echo " * creating custom rule chains"
-$IPSET create blacklist hash:ip
-$IPSET create whitelist hash:ip
+#$IPSET create blacklist hash:net family inet hashsize 16384 maxelem 500000
+#$IPSET create whitelist hash:ip
+$IPSET restore -! < /home/chuck/ipset/ipset.restore
 $IPTABLES --new-chain bad_packets
 $IPTABLES --new-chain bad_tcp_packets
 $IPTABLES --new-chain icmp_packets
@@ -163,6 +161,10 @@ table="--append udp_inbound --protocol udp --source 0/0"
 rule="--in-interface eth0 --dport 1194 -m conntrack --ctstate NEW"
 iptables "$table" "$rule" "* allow INC OpenVPN *" "ACCEPT"
 
+# Immediately ban and drop nerds attempting to access USP ports that should not be open
+nerds="-m multiport ! --ports 1194"
+iptables "$table" "$nerds" "$DONT_LOG" "SET --add-set blacklist src" "$REJECT"
+
 # Not matched, so return for logging
 iptables "--append udp_inbound --protocol udp" "" "$DONT_LOG" "RETURN"
 
@@ -232,16 +234,12 @@ iptables "$table" "" "$DONT_LOG" "RETURN"
 
 
 
-
-
 # tcp_outbound chain
 #
 echo " * * creating outbound TCP packet chain"
 
 # No match, so ACCEPT
 iptables "--append tcp_outbound --protocol tcp --source 0/0" "" "$DONT_LOG" "ACCEPT"
-
-
 
 
 
@@ -274,7 +272,7 @@ iptables "$table" "-m set --match-set whitelist src" "$DONT_LOG" "ACCEPT"
 iptables "$table" "-m set --match-set blacklist src" "$DONT_LOG" "$REJECT"
 
 # Immediately ban and drop a host attempting to access ports that should not be open
-iptables "$table --protocol tcp" "-m multiport ! --ports ssh,http,https" "$DONT_LOG" "SET --add-set blacklist src" "$REJECT"
+iptables "$table --protocol tcp" "-m multiport ! --ports 4949" "$DONT_LOG" "SET --add-set blacklist src" "$REJECT"
 
 # Route the rest to the appropriate user chain
 $IPTABLES $table --protocol tcp --jump tcp_inbound
@@ -285,7 +283,9 @@ $IPTABLES $table --protocol icmp --jump icmp_packets
 iptables "$table" "-m limit --limit 3/minute --limit-burst 3" "Packet died"
 
 
-
 # Save settings
-$(which ipset) save > $HOME/ipset_saved/ipset.conf
-$(which iptables-save) > $HOME/iptables_saved/firegual.rules
+#$(which ipset) save > $HOME/ipset/ipset.restore
+$(which iptables-save) > /home/chuck/iptables_saved/firegual.rules
+
+# Woraround cuz ipset restore ain't workin' for me
+#for ip in `sed -i '1d;s/add\ blacklist\ //g' /home/chuck/ipset/ipset.restore`; do ipset add blacklist $ip ; done

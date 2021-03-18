@@ -16,6 +16,8 @@ PATH=/home/chuck/bin:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bi
 
 ### root's cron
 
+0 * * * * /sbin/ipset save > /home/chuck/ipset/ipset.restore
+
 1 9 * * * /bin/rm /var/log/{alternatives.log.*,btmp.*,wtmp.*,dpkg.log.*,kern.log.*}
 
 * 10 * * * /sbin/shutdown -r +5
