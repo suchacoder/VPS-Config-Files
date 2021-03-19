@@ -1,0 +1,62 @@
+# Translated by iptables-restore-translate v1.6.1 on Fri Mar 19 14:54:18 2021
+add table ip nat
+add chain ip nat PREROUTING { type nat hook prerouting priority 0; policy accept; }
+add chain ip nat INPUT { type nat hook input priority 0; policy accept; }
+add chain ip nat OUTPUT { type nat hook output priority 0; policy accept; }
+add chain ip nat POSTROUTING { type nat hook postrouting priority 0; policy accept; }
+add rule ip nat POSTROUTING oifname eth0 ip saddr 10.8.0.0/24 counter masquerade 
+add table ip filter
+add chain ip filter INPUT { type filter hook input priority 0; policy accept; }
+add chain ip filter FORWARD { type filter hook forward priority 0; policy accept; }
+add chain ip filter OUTPUT { type filter hook output priority 0; policy accept; }
+add chain ip filter bad_packets
+add chain ip filter bad_tcp_packets
+add chain ip filter icmp_packets
+add chain ip filter tcp_inbound
+add chain ip filter tcp_outbound
+add chain ip filter udp_inbound
+add chain ip filter udp_outbound
+add rule ip filter INPUT iifname lo counter accept
+add rule ip filter INPUT counter jump bad_packets
+add rule ip filter INPUT ct state related,established counter accept
+# -t filter -A INPUT -m set --match-set whitelist src -j ACCEPT 
+# -t filter -A INPUT -m set --match-set blacklist src -j DROP 
+# -t filter -A INPUT -p tcp -m multiport  --ports 4949 -j SET --add-set blacklist src 
+add rule ip filter INPUT ip protocol tcp counter jump tcp_inbound
+add rule ip filter INPUT ip protocol udp counter jump udp_inbound
+add rule ip filter INPUT ip protocol icmp counter jump icmp_packets
+add rule ip filter INPUT limit rate 3/minute burst 3 packets counter 
+add rule ip filter FORWARD counter accept
+add rule ip filter bad_packets ct state invalid counter drop
+add rule ip filter bad_packets ip protocol tcp counter jump bad_tcp_packets
+add rule ip filter bad_packets counter return
+add rule ip filter bad_tcp_packets tcp flags & (fin|syn|rst|ack) != syn ct state new counter drop
+add rule ip filter bad_tcp_packets tcp flags & (fin|syn|rst|psh|ack|urg) == 0x0 counter drop
+add rule ip filter bad_tcp_packets tcp flags & (fin|syn|rst|psh|ack|urg) == fin|syn|rst|psh|ack|urg counter drop
+add rule ip filter bad_tcp_packets tcp flags & (fin|syn|rst|psh|ack|urg) == fin|psh|urg counter drop
+add rule ip filter bad_tcp_packets tcp flags & (fin|syn|rst|psh|ack|urg) == fin|syn|rst|ack|urg counter drop
+add rule ip filter bad_tcp_packets tcp flags & (syn|rst) == syn|rst counter drop
+add rule ip filter bad_tcp_packets tcp flags & (fin|syn) == fin|syn counter drop
+add rule ip filter bad_tcp_packets tcp flags & (fin|syn) == fin|syn counter drop
+add rule ip filter bad_tcp_packets tcp flags & (fin|syn|rst|psh|ack|urg) == 0x0 counter drop
+add rule ip filter bad_tcp_packets tcp flags & (fin|rst) == fin|rst counter drop
+add rule ip filter bad_tcp_packets tcp flags & (fin|ack) == fin counter drop
+add rule ip filter bad_tcp_packets tcp flags & (ack|urg) == urg counter drop
+add rule ip filter bad_tcp_packets ip protocol tcp counter return
+add rule ip filter icmp_packets ip frag-off != 0 ip protocol icmp counter drop
+add rule ip filter icmp_packets icmp type address-mask-request counter drop
+add rule ip filter icmp_packets icmp type timestamp-request counter drop
+add rule ip filter icmp_packets icmp type echo-request limit rate 1/second burst 5 packets counter accept
+add rule ip filter icmp_packets icmp type time-exceeded counter accept
+add rule ip filter icmp_packets ip protocol icmp counter return
+# -t filter -A tcp_inbound -p tcp -m tcp --dport 4949 -m recent --update --seconds 60 --hitcount 1 --name SSH --mask 255.255.255.255 --rsource -j DROP 
+# -t filter -A tcp_inbound -p tcp -m tcp --dport 4949 -m recent --set --name SSH --mask 255.255.255.255 --rsource 
+add rule ip filter tcp_inbound tcp dport 4949 counter accept
+add rule ip filter tcp_inbound ip protocol tcp counter return
+add rule ip filter tcp_outbound ip protocol tcp counter accept
+add rule ip filter udp_inbound iifname eth0 udp dport 1194 ct state new counter accept
+# -t filter -A udp_inbound -p udp -m multiport  --ports 1194 -j SET --add-set blacklist src 
+add rule ip filter udp_inbound ip protocol udp counter return
+add rule ip filter udp_outbound oifname eth0 udp sport 1194 ct state related,established counter accept
+add rule ip filter udp_outbound ip protocol udp counter accept
+# Completed on Fri Mar 19 14:54:18 2021
