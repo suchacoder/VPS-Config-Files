@@ -1,0 +1,60 @@
+Step 4  Generating a Client Certificate and Key Pair
+
+Get started by creating a directory structure in your VPN server within your home directory to store the client certificate and key files:
+
+    mkdir -p ~/vpn/clients/$CLIENT/keys
+
+Since you will store your client's certificate/key pairs and configuration files in this directory, you should lock down its permissions now as a security measure:
+
+    chmod -R 700 ~/client-configs
+
+Next, navigate back to the EasyRSA directory in your VPN server, and run the easyrsa script with the gen-req and nopass options, along with the common name for the client:
+
+    cd ~/EasyRSA-3.0.4/
+    ./easyrsa gen-req $CLIENT nopass
+
+Press ENTER to confirm the common name. Then, copy the $CLIENT.key file to the ~/vpn/clients/$CLIENT/keys directory you created earlier:
+
+    cp pki/private/$CLIENT.key ~/vpn/clients/$CLIENT/keys
+
+Next, transfer the $CLIENT.req file to your CA machine using a secure method:
+
+    scp pki/reqs/$CLIENT.req sammy@your_CA_ip:/tmp
+
+Log in to your CA machine, navigate to the EasyRSA directory, and import the certificate request:
+
+    ssh sammy@your_CA_ip
+    cd EasyRSA-3.0.4/
+    ./easyrsa import-req /tmp/$CLIENT.req $CLIENT
+
+Then sign the request as you did for the server in the previous step. This time, though, be sure to specify the client request type:
+
+    ./easyrsa sign-req client $CLIENT
+
+At the prompt, enter yes to confirm that you intend to sign the certificate request and that it came from a trusted source:
+
+Output
+Type the word 'yes' to continue, or any other input to abort.
+  Confirm request details: yes
+
+Again, if you encrypted your CA key, you’ll be prompted for your password here.
+
+This will create a client certificate file named $CLIENT.crt. Transfer this file back to the VPN server:
+
+    scp pki/issued/$CLIENT.crt sammy@your_server_ip:/tmp
+
+SSH back into your OpenVPN server and copy the client certificate to the ~/vpn/clients/$CLIENT/keys directory:
+
+    cp /tmp/$CLIENT.crt ~/vpn/clients/$CLIENT/keys
+
+Next, copy the ca.crt and ta.key files to the ~/vpn/clients/$CLIENT/keys directory as well:
+
+    cp ~/EasyRSA-3.0.4/ta.key ~/vpn/clients/$CLIENT/keys
+    sudo cp /etc/openvpn/ca.crt ~/vpn/clients/$CLIENT/keys
+
+With that, your server and client’s certificates and keys have all been generated and are stored in the appropriate directories on your server.
+
+And then
+sudo ./make_config.sh $CLIENT
+
+This will create a file named client1.ovpn in your ~/vpn/clients/files directory
