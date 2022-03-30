@@ -1,32 +1,20 @@
-#!/bin/bash
+#!/usr/bin/env sh
 
 # Location of executables
-IPSET=$(which ipset)
-IPTABLES=$(which iptables)
-
-# VARs
-IFACE="eth0"
-ADMIN="181.191.0.0/16"
-SSHPORT="4949"
-OPENVPNPORT="1194"
-DNS_SERVER="204.152.204.100,204.152.204.10"
-PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
-IPSET_HOSTS="104.16.37.47,104.16.38.47,104.20.4.21,104.20.5.21,138.201.14.212,151.101.4.133,185.21.103.31,188.40.39.38,199.188.221.36,208.70.186.167,209.124.55.40"
-TCP_SERVICES="4949"
-UDP_SERVICES="1194"
-#HTTP_PORTS="80,443"
-#WIREGUARDPORT="51820"
+IPSET=/usr/sbin/ipset
+IPTABLES=/sbin/iptables
 
 # Common definitions
 COMMENT="-m comment --comment"
 LOG="ULOG --ulog-nlgroup 1 --ulog-prefix"
 DONT_LOG=""
 
-# Set default policy for response to unwanted packets, should be set to DROP
+# Set default policy for response to unwanted packets, hould be set to DROP
 # in production, but this allows you to change all of the rules at once.
 # This is useful for testing, where you can set the tables to REJECT
 # so that you can see if they are working immediately while testing.
 REJECT=DROP
+
 
 
 # iptables function
@@ -42,12 +30,12 @@ iptables() {
   local message=$3              # Message, used for both comments and logging (Optional)
   declare -a actions=("${@:4}") # Action(s) to be preformed (Multiple can be specified)
 
-  #local comment=""
+  local comment=""
   # If message is not empty, use it as a comment and to insert a LOG jump.
-  #if [ -n "$message" ]; then
-   # comment=$COMMENT "$message"
-   # $IPTABLES $comment $table $rule --jump $LOG "$message"
-  #fi
+  if [ -n "$message" ]; then
+    comment=$COMMENT "$message"
+    $IPTABLES $comment $table $rule --jump $LOG "$message"
+  fi
 
   # If 3 or less parameters are given; create a simple table and rule statement.
   if [ "$parameters" -le 3 ]; then
@@ -64,6 +52,8 @@ iptables() {
 }
 
 
+
+
 echo "Configuring netfilter:"
 
 
@@ -77,16 +67,15 @@ $IPSET destroy
 
 # Set default policies for all three default chains
 echo " * setting default policies"
-$IPTABLES --policy INPUT $REJECT
+$IPTABLES --policy INPUT ACCEPT
 $IPTABLES --policy FORWARD $REJECT
 $IPTABLES --policy OUTPUT ACCEPT
 
 
 # Create chains to reduce the number of rules each packet must traverse.
 echo " * creating custom rule chains"
-#$IPSET create blacklist hash:net family inet hashsize 16384 maxelem 500000
-#$IPSET create whitelist hash:ip
-$IPSET restore -! < /home/chuck/ipset/ipset.restore
+$IPSET create blacklist hash:ip
+$IPSET create whitelist hash:ip
 $IPTABLES --new-chain bad_packets
 $IPTABLES --new-chain bad_tcp_packets
 $IPTABLES --new-chain icmp_packets
@@ -187,11 +176,13 @@ echo " * * creating inbound TCP packet chain"
 
 table="--append tcp_inbound --protocol tcp --source 0/0"
 
+# Web Server
+
 
 # SSH
-echo " * * * allowing ssh on port 4949"
+echo " * * * allowing ssh on port 22"
 
-subtable="$table --destination-port 4949"
+subtable="$table --destination-port ssh"
 
 rule="-m recent --name SSH --update --seconds 60 --hitcount 1"
 iptables "$subtable" "$rule" "*** SSH over rate limit ***" "$REJECT"
@@ -202,24 +193,24 @@ iptables "$subtable" "$rule" "*** SSH connection attempt ***"
 iptables "$subtable" "" "*** SSH connection accepted ***" "ACCEPT"
 
 
-# Web Server
-
 # HTTP
-#echo " * * * allowing http on port 80"
-#subtable="$table --destination-port http"
-#rule="-m limit --limit 50/minute --limit-burst 100"
-#iptables "$subtable" "$rule" "$DONT_LOG" "ACCEPT"
+echo " * * * allowing http on port 80"
+subtable="$table --destination-port http"
+rule="-m limit --limit 50/minute --limit-burst 100"
+iptables "$subtable" "$rule" "$DONT_LOG" "ACCEPT"
 
 
 # HTTPS
-#echo " * * * allowing https on port 443"
-#subtable="$table --destination-port https"
-#rule="-m limit --limit 50/minute --limit-burst 100"
-#iptables "$subtable" "$rule" "$DONT_LOG" "ACCEPT"
+echo " * * * allowing https on port 443"
+subtable="$table --destination-port https"
+rule="-m limit --limit 50/minute --limit-burst 100"
+iptables "$subtable" "$rule" "$DONT_LOG" "ACCEPT"
 
 
 # Not matched, so return so it will be logged
 iptables "$table" "" "$DONT_LOG" "RETURN"
+
+
 
 
 
@@ -261,7 +252,7 @@ iptables "$table" "-m set --match-set whitelist src" "$DONT_LOG" "ACCEPT"
 iptables "$table" "-m set --match-set blacklist src" "$DONT_LOG" "$REJECT"
 
 # Immediately ban and drop a host attempting to access ports that should not be open
-iptables "$table --protocol tcp" "-m multiport ! --ports 4949" "$DONT_LOG" "SET --add-set blacklist src" "$REJECT"
+iptables "$table --protocol tcp" "-m multiport ! --ports ssh,http,https" "$DONT_LOG" "SET --add-set blacklist src" "$REJECT"
 
 # Route the rest to the appropriate user chain
 $IPTABLES $table --protocol tcp --jump tcp_inbound
@@ -272,9 +263,7 @@ $IPTABLES $table --protocol icmp --jump icmp_packets
 iptables "$table" "-m limit --limit 3/minute --limit-burst 3" "Packet died"
 
 
-# Save settings
-#$(which ipset) save > $HOME/ipset/ipset.restore
-$(which iptables-save) > /home/chuck/iptables_saved/firegual.rules
 
-# Woraround cuz ipset restore ain't workin' for me
-#for ip in `sed -i '1d;s/add\ blacklist\ //g' /home/chuck/ipset/ipset.restore`; do ipset add blacklist $ip ; done
+# Save settings
+/etc/init.d/ipset save
+/etc/init.d/iptables saves

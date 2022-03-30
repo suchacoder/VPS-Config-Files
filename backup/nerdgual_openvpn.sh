@@ -4,19 +4,6 @@
 IPSET=$(which ipset)
 IPTABLES=$(which iptables)
 
-# VARs
-IFACE="eth0"
-ADMIN="181.191.0.0/16"
-SSHPORT="4949"
-OPENVPNPORT="1194"
-DNS_SERVER="204.152.204.100,204.152.204.10"
-PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
-IPSET_HOSTS="104.16.37.47,104.16.38.47,104.20.4.21,104.20.5.21,138.201.14.212,151.101.4.133,185.21.103.31,188.40.39.38,199.188.221.36,208.70.186.167,209.124.55.40"
-TCP_SERVICES="4949"
-UDP_SERVICES="1194"
-#HTTP_PORTS="80,443"
-#WIREGUARDPORT="51820"
-
 # Common definitions
 COMMENT="-m comment --comment"
 LOG="ULOG --ulog-nlgroup 1 --ulog-prefix"
@@ -77,8 +64,8 @@ $IPSET destroy
 
 # Set default policies for all three default chains
 echo " * setting default policies"
-$IPTABLES --policy INPUT $REJECT
-$IPTABLES --policy FORWARD $REJECT
+$IPTABLES --policy INPUT ACCEPT
+$IPTABLES --policy FORWARD ACCEPT
 $IPTABLES --policy OUTPUT ACCEPT
 
 
@@ -169,6 +156,15 @@ iptables "$table" "" "$DONT_LOG" "RETURN"
 #
 echo " * * creating inbound UDP packet chain"
 
+echo "* * allow OpenVPN"
+table="--append udp_inbound --protocol udp --source 0/0"
+rule="--in-interface eth0 --dport 1194 -m conntrack --ctstate NEW"
+iptables "$table" "$rule" "* allow INC OpenVPN *" "ACCEPT"
+
+# Immediately ban and drop nerds attempting to access UDP ports that should not be open
+nerds="-m multiport ! --ports 1194"
+iptables "$table" "$nerds" "$DONT_LOG" "SET --add-set blacklist src" "$REJECT"
+
 # Not matched, so return for logging
 iptables "--append udp_inbound --protocol udp" "" "$DONT_LOG" "RETURN"
 
@@ -176,6 +172,21 @@ iptables "--append udp_inbound --protocol udp" "" "$DONT_LOG" "RETURN"
 # udp_outbound chain
 #
 echo " * * creating outbound UDP packet chain"
+
+table="--append udp_outbound --protocol udp --destination 0/0"
+rule="--out-interface eth0 --sport 1194 -m conntrack --ctstate ESTABLISHED,RELATED"
+iptables "$table" "$rule" "* allow OUT OpenVPN *" "ACCEPT"
+
+
+# OpenVPN Masquerade outgoing traffic
+echo " * * masquarading OpenVPN"
+
+table="-t nat"
+rule="--append POSTROUTING -o eth0 --source 10.8.0.0/24"
+iptables "$table" "$rule" "* masquerade OpenVPN *" "MASQUERADE"
+
+# Forward everything
+iptables -A FORWARD -j ACCEPT
 
 # No match, so ACCEPT
 iptables "--append udp_outbound --protocol udp" "" "$DONT_LOG" "ACCEPT"
@@ -186,6 +197,8 @@ iptables "--append udp_outbound --protocol udp" "" "$DONT_LOG" "ACCEPT"
 echo " * * creating inbound TCP packet chain"
 
 table="--append tcp_inbound --protocol tcp --source 0/0"
+
+# Web Server
 
 
 # SSH
@@ -201,8 +214,6 @@ iptables "$subtable" "$rule" "*** SSH connection attempt ***"
 
 iptables "$subtable" "" "*** SSH connection accepted ***" "ACCEPT"
 
-
-# Web Server
 
 # HTTP
 #echo " * * * allowing http on port 80"
