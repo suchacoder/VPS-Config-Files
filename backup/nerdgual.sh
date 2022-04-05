@@ -6,12 +6,12 @@ IPTABLES=$(which iptables)
 
 # VARs
 IFACE="eth0"
-ADMIN="181.191.143.0/32"
-SSHPORT="44555"
+ADMIN="xxx.xxx.xxx.0/32"
+SSHPORT="22"
 URTPORT="27960,27961,27962"
 PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
-TCP_SERVICES="44555"
-DP_SERVICES="27960,27961,27962"
+TCP_SERVICES="22"
+UDP_SERVICES="27960,27961,27962"
 #HTTP_PORTS="80,443"
 
 # Common definitions
@@ -272,8 +272,8 @@ iptables "$table" "-m limit --limit 3/minute --limit-burst 3" "Packet died"
 
 
 # Save settings
-$(which ipset) save > /home/chuck/ipset/ipset.restore
-$(which iptables-save) > /home/chuck/iptables_saved/firegual.rules
+$(which ipset) save > /home/$USER/ipset/ipset.restore
+$(which iptables-save) > /home/$USER/iptables_saved/firegual.rules
 
 # Woraround cuz ipset restore ain't workin' for me
 #for ip in `sed -i '1d;s/add\ blacklist\ //g' /home/chuck/ipset/ipset.restore`; do ipset add blacklist $ip ; done
