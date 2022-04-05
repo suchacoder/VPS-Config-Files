@@ -6,11 +6,11 @@ IPTABLES=$(which iptables)
 
 # VARs
 IFACE="eth0"
-ADMIN="xxx.xxx.xxx.0/32"
-SSHPORT="22"
+ADMIN="181.191.143.0/32"
+SSHPORT="44555"
 URTPORT="27960,27961,27962"
 PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
-TCP_SERVICES="22"
+TCP_SERVICES="44555"
 UDP_SERVICES="27960,27961,27962"
 #HTTP_PORTS="80,443"
 
@@ -68,8 +68,9 @@ echo "Configuring netfilter:"
 echo " * flushing old rules"
 $IPTABLES --flush
 $IPTABLES --delete-chain
-$IPSET --flush
-$IPSET --destroy
+## Only flush and destroy ipset one time, then comment it to keep blacklisted IPs ##
+#$IPSET --flush
+#$IPSET --destroy
 
 
 # Set default policies for all three default chains
@@ -82,13 +83,13 @@ $IPTABLES --policy OUTPUT ACCEPT
 # Create chains to reduce the number of rules each packet must traverse.
 echo " * creating custom rule chains"
 $IPSET create blacklist hash:net family inet hashsize 16384 maxelem 500000
-$IPSET create whitelist hash:ip
 $IPSET restore -! < /home/chuck/ipset/ipset.restore
+$IPSET create whitelist hash:ip
 $IPTABLES --new-chain bad_packets
 $IPTABLES --new-chain bad_tcp_packets
 $IPTABLES --new-chain icmp_packets
 $IPTABLES --new-chain udp_inbound
-$IPTABLES --new-chain udp_outbound
+$IPTABLES --new-chain udp_utbound
 $IPTABLES --new-chain tcp_inbound
 $IPTABLES --new-chain tcp_outbound
 
@@ -272,10 +273,10 @@ iptables "$table" "-m limit --limit 3/minute --limit-burst 3" "Packet died"
 
 
 # Save settings
-$(which ipset) save > /home/$USER/ipset/ipset.restore
-$(which iptables-save) > /home/$USER/iptables_saved/firegual.rules
+#$(which ipset) save > /home/chuck/ipset/ipset.restore
+$(which iptables-save) > /home/chuck/iptables_saved/nerdgual.rules
 
-# Woraround cuz ipset restore ain't workin' for me
+# Woraround cuz for some nerd reason ipset restore ain't workin' for me #
 #for ip in `sed -i '1d;s/add\ blacklist\ //g' /home/chuck/ipset/ipset.restore`; do ipset add blacklist $ip ; done
 
 # Script to block IPs reading a file, same scheme might be used for $blacklist or $whitelist IPs
