@@ -11,7 +11,7 @@ SSHPORT="44555"
 URTPORT="27960,27961,27962"
 PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
 TCP_SERVICES="44555"
-UDP_SERVICES="27960,27961,27962"
+DP_SERVICES="27960,27961,27962"
 #HTTP_PORTS="80,443"
 
 # Common definitions
@@ -24,7 +24,6 @@ DONT_LOG=""
 # This is useful for testing, where you can set the tables to REJECT
 # so that you can see if they are working immediately while testing.
 REJECT=DROP
-
 
 # iptables function
 # Used inplace of calling iptables directly or a variable pointing to iptables.
@@ -60,17 +59,7 @@ iptables() {
   fi
 }
 
-
 echo "Configuring netfilter:"
-
-
-# Flush old rules, custom tables and sets
-echo " * flushing old rules"
-$IPTABLES --flush
-$IPTABLES --delete-chain
-## Only flush and destroy ipset one time, then comment it to keep blacklisted IPs ##
-#$IPSET --flush
-#$IPSET --destroy
 
 
 # Set default policies for all three default chains
@@ -79,9 +68,9 @@ $IPTABLES --policy INPUT $REJECT
 $IPTABLES --policy FORWARD $REJECT
 $IPTABLES --policy OUTPUT ACCEPT
 
-
 # Create chains to reduce the number of rules each packet must traverse.
 echo " * creating custom rule chains"
+## Only use ipset to create blacklist one time, then comment it and just restore 'ipset.restore' ##
 $IPSET create blacklist hash:net family inet hashsize 16384 maxelem 500000
 $IPSET restore -! < /home/chuck/ipset/ipset.restore
 $IPSET create whitelist hash:ip
@@ -89,7 +78,7 @@ $IPTABLES --new-chain bad_packets
 $IPTABLES --new-chain bad_tcp_packets
 $IPTABLES --new-chain icmp_packets
 $IPTABLES --new-chain udp_inbound
-$IPTABLES --new-chain udp_utbound
+$IPTABLES --new-chain udp_outbound
 $IPTABLES --new-chain tcp_inbound
 $IPTABLES --new-chain tcp_outbound
 
@@ -167,10 +156,15 @@ iptables "$table" "" "$DONT_LOG" "RETURN"
 #
 echo " * * creating inbound UDP packet chain"
 
+# Immediately ban and drop a host attempting to access ports that should not be open
 table="--append udp_inbound --protocol udp"
+rule="-m multiport ! --ports $UDP_SERVICES"
+iptables "$table" "$rule" "$DONT_LOG" "SET --add-set blacklist src" "$REJECT"
+
+# Accept connections to UrT server
 subtable="$table -m multiport --destination-ports "$URTPORT""
-rule="-m limit --limit 70/minute --limit-burst 100"
-iptables "$subtable" "$rule" "$DONT_LOG" "ACCEPT"
+subrule="-m limit --limit 70/minute --limit-burst 100"
+iptables "$subtable" "$subrule" "$DONT_LOG" "ACCEPT"
 # Not matched, so return for logging
 iptables "--append udp_inbound --protocol udp" "" "$LOG" "RETURN"
 
@@ -188,7 +182,8 @@ iptables "--append udp_outbound --protocol udp" "" "$DONT_LOG" "ACCEPT"
 echo " * * creating inbound TCP packet chain"
 
 table="--append tcp_inbound --protocol tcp --source 0/0"
-
+rule="-m multiport ! --ports $TCP_SERVICES"
+iptables "$table" "$rule" "$DONT_LOG" "SET --add-set blacklist src" "$REJECT"
 
 # SSH
 echo " * * * allowing ssh on port 44555"
@@ -199,7 +194,6 @@ iptables "$subtable" "$rule" "*** SSH over rate limit ***" "$REJECT"
 rule="-m recent --name SSH --set"
 iptables "$subtable" "$rule" "*** SSH connection attempt ***"
 iptables "$subtable" "" "*** SSH connection accepted ***" "ACCEPT"
-
 
 # Web Server
 
@@ -216,10 +210,8 @@ iptables "$subtable" "" "*** SSH connection accepted ***" "ACCEPT"
 #rule="-m limit --limit 50/minute --limit-burst 100"
 #iptables "$subtable" "$rule" "$DONT_LOG" "ACCEPT"
 
-
 # Not matched, so return so it will be logged
 iptables "$table" "" "$DONT_LOG" "RETURN"
-
 
 
 # tcp_outbound chain
@@ -228,8 +220,6 @@ echo " * * creating outbound TCP packet chain"
 
 # No match, so ACCEPT
 iptables "--append tcp_outbound --protocol tcp --source 0/0" "" "$DONT_LOG" "ACCEPT"
-
-
 
 
 ###############################################################################
@@ -259,10 +249,6 @@ iptables "$table" "-m set --match-set whitelist src" "$DONT_LOG" "ACCEPT"
 # Drop blacklisted hosts right away
 iptables "$table" "-m set --match-set blacklist src" "$DONT_LOG" "$REJECT"
 
-# Immediately ban and drop a host attempting to access ports that should not be open
-iptables "$table --protocol tcp" "-m multiport ! --ports $TCP_SERVICES" "$DONT_LOG" "SET --add-set blacklist src" "$REJECT"
-#iptables "$table --protocol udp" "-m multiport ! --ports $UDP_SERVICES" "$DONT_LOG" "SET --add-set blacklist src" "$REJECT"
-
 # Route the rest to the appropriate user chain
 $IPTABLES $table --protocol tcp --jump tcp_inbound
 $IPTABLES $table --protocol udp --jump udp_inbound
@@ -270,7 +256,6 @@ $IPTABLES $table --protocol icmp --jump icmp_packets
 
 # Log packets that still don't match
 iptables "$table" "-m limit --limit 3/minute --limit-burst 3" "Packet died"
-
 
 # Save settings
 #$(which ipset) save > /home/chuck/ipset/ipset.restore
