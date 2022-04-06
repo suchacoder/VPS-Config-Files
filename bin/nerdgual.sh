@@ -5,17 +5,14 @@ IPSET=$(which ipset)
 IPTABLES=$(which iptables)
 
 # VARs
-IFACE="eth0"
-ADMIN="181.191.143.0/32"
 SSHPORT="44555"
 URTPORT="27960,27961,27962"
-PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
 TCP_SERVICES="44555"
-DP_SERVICES="27960,27961,27962"
+UDP_SERVICES="27960,27961,27962"
 #HTTP_PORTS="80,443"
 
 # Common definitions
-COMMENT="-m comment --comment"
+COMMENT="-m commen --comment"
 LOG="ULOG --ulog-nlgroup 1 --ulog-prefix"
 DONT_LOG=""
 
@@ -158,7 +155,7 @@ echo " * * creating inbound UDP packet chain"
 
 # Immediately ban and drop a host attempting to access ports that should not be open
 table="--append udp_inbound --protocol udp"
-rule="-m multiport ! --ports $UDP_SERVICES"
+rule="-m multiport ! --ports "$UDP_SERVICES""
 iptables "$table" "$rule" "$DONT_LOG" "SET --add-set blacklist src" "$REJECT"
 
 # Accept connections to UrT server
@@ -182,13 +179,13 @@ iptables "--append udp_outbound --protocol udp" "" "$DONT_LOG" "ACCEPT"
 echo " * * creating inbound TCP packet chain"
 
 table="--append tcp_inbound --protocol tcp --source 0/0"
-rule="-m multiport ! --ports $TCP_SERVICES"
+rule="-m multiport ! --ports "$TCP_SERVICES""
 iptables "$table" "$rule" "$DONT_LOG" "SET --add-set blacklist src" "$REJECT"
 
 # SSH
 echo " * * * allowing ssh on port 44555"
 
-subtable="$table --destination-port $SSHPORT"
+subtable="$table --destination-port "$SSHPORT""
 rule="-m recent --name SSH --update --seconds 60 --hitcount 1"
 iptables "$subtable" "$rule" "*** SSH over rate limit ***" "$REJECT"
 rule="-m recent --name SSH --set"
