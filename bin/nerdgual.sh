@@ -12,8 +12,9 @@ UDP_SERVICES="27960,27961,27962"
 #HTTP_PORTS="80,443"
 
 # Common definitions
-COMMENT="-m commen --comment"
-LOG="ULOG --ulog-nlgroup 1 --ulog-prefix"
+# Ulog2 sentence LG="ULOG --ulog-nlgroup 1 --ulog-prefix"
+COMMENT="-m comment --comment"
+LOG="-m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix BAD GUYS: "
 DONT_LOG=""
 
 # Set default policy for response to unwanted packets, should be set to DROP
@@ -36,10 +37,10 @@ iptables() {
   declare -a actions=("${@:4}") # Action(s) to be preformed (Multiple can be specified)
 
   #local comment=""
-  # If message is not empty, use it as a comment and to insert a LOG jump.
+   #If message is not empty, use it as a comment and to insert a LOG jump.
   #if [ -n "$message" ]; then
-   # comment=$COMMENT "$message"
-   # $IPTABLES $comment $table $rule --jump $LOG "$message"
+    #comment=$COMMENT "$message"
+    #$IPTABLES $comment $table $rule --jump $LOG "$message"
   #fi
 
   # If 3 or less parameters are given; create a simple table and rule statement.
