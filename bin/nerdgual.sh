@@ -1,10 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
 
 # Location of executables
 IPSET=$(which ipset)
 IPTABLES=$(which iptables)
 
 # VARs
+ADMIN="181.191.143.0/32"
 SSHPORT="44555"
 URTPORT="27960,27961,27962"
 TCP_SERVICES="44555"
@@ -12,10 +15,21 @@ UDP_SERVICES="27960,27961,27962"
 #HTTP_PORTS="80,443"
 
 # Common definitions
-# Ulog2 sentence LG="ULOG --ulog-nlgroup 1 --ulog-prefix"
+# Ulog2 sentence LOG="ULOG --ulog-nlgroup 1 --ulog-prefix"
 COMMENT="-m comment --comment"
 LOG="-m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix BAD GUYS: "
 DONT_LOG=""
+
+# Colors
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+NO_COLOR="\033[0m"
+
+# Check if root
+if [ $((UID)) != 0 ]; then
+  echo -e "$RED ERROR: You need to run this script as ROOT user $NO_COLOR" >&2
+  exit 2
+fi
 
 # Set default policy for response to unwanted packets, should be set to DROP
 # in production, but this allows you to change all of the rules at once.
@@ -187,11 +201,12 @@ iptables "$table" "$rule" "$DONT_LOG" "SET --add-set blacklist src" "$REJECT"
 echo " * * * allowing ssh on port 44555"
 
 subtable="$table --destination-port "$SSHPORT""
+rule="-m conntrack --ctstate NEW -m recent --name SSH --set"
+iptables "$subtable" "$rule" "*** SSH connection attempt ***"
 rule="-m recent --name SSH --update --seconds 60 --hitcount 1"
 iptables "$subtable" "$rule" "*** SSH over rate limit ***" "$REJECT"
-rule="-m recent --name SSH --set"
-iptables "$subtable" "$rule" "*** SSH connection attempt ***"
-iptables "$subtable" "" "*** SSH connection accepted ***" "ACCEPT"
+subrule="--append tcp_inbound --protocol tcp --source "$ADMIN""
+iptables "$subrule" "" "*** SSH connection accepted ***" "ACCEPT"
 
 # Web Server
 
