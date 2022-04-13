@@ -1,285 +1,414 @@
-#!/bin/sh
+#!/bin/bash
 
-echo "\e[32m     .                     s                    ..         ..             .x+=:."
-echo "\e[31m    @88>                  :8              . uW8"       "d88"                    ""
-echo "\e[33m    %8P   .d             .88               t888       5888R                 .   <k"
-echo "\e[34m     .    @8Ne.   .u    :888ooo      u     8888   .   '888R       .u      .@8Ned8"
-echo "\e[35m   .@88u  %8888:u@88N -*8888888   us888u.  9888.z88N   888R    ud8888.  .@^%8888"
-echo "\e[36m  ''888E    888I  888.  8888   .@88  8888  9888  888E  888R  :888'8888.x88:   )8b."
-echo "\e[37m    888E    888I  888I  8888   9888  9888  9888  888E  888R  d888 '88%8888N=*8888"
-echo "\e[31m    888E    888I  888I  8888   9888  9888  9888  888E  888R  8888.+     %8"   "R88"
-echo "\e[32m    888E  uW888L  888' .8888Lu=9888  9888  9888  888E  888R  8888L       @8Wou 9%"
-echo "\e[33m    888E  ""88888Nu88P  88888  9888  9888  8888  888   888B  8888c        88888P"
-echo "\e[34m    R888"   "88888F       Y"   "888*""888"  "%888*"    "*888%  88888%      ^F"
-echo "\e[35m     ""      888 ^              ^Y"   "Y"     "         %"      "YP'"
-echo "\e[36m             *8E"
-echo "\e[37m              8>                                       \e[33mFun*T|Chuck <leanhack@gmail.com>"
+###########################################################
+# Unification of terms
+# The terms of the rules and comments are unified below for the sake of clarity
+# ACCEPT : accept packets
+# DROP   : destruction
+# REJECT : rejection
+##########################################################
 
-# SSH Port ez customization
-# Admin IP ez customization
-# Ez testing rules without locking you out of your vps :p
-# Statefull
-# Allows Ubuntu's repositorie (by ez modification to allow your distro's repos)
-# Allows Local Loopback
-# Allows DNS Query and Response
-# Allows retriving bad boys IPs from well known hosts like Firehol
-# Allows SSH
-# Allows UrT INC and OUT packets
-# Allows Teamspeak
-# Allows HTTP
-# IPSET Blocklist Support
-# Rate limiting per IP
-# Blocks and bans port scanners
-# Blocks bad source
-# Blocks non local Loopback
-# Blocks spoofed/invalid packets
-# Blocks Smurf attacks
-# LOG and Blocks DOS
-# DOS SYN Flood
-# DOS ICMP
-# DOS SSH
-# DOS HTTP
-# Allow rsync from a specific network
-# Logging blocked packages
+###########################################################
+# Cheat sheet
+#
+# -A, --append       Add one or more new rules to a given chain
+# -D, --delete       Remove one or more rules from the specified chain
+# -P, --policy       Set the policy of the specified chain to the specified target
+# -N, --new-chain    Create a new user-defined chain
+# -X, --delete-chain Delete the specified user-defined chain
+# -F                 Table initialization
+#
+# -p, --protocol      protocol             Specify protocol (tcp, udp, icmp, all)
+# -s, --source        IP address [/ mask]  Source address. Describe the IP address or host name
+# -d, --destination   IP address [/ mask]  Destination address. Describe the IP address or host name
+# -i, --in-interface  device               Specifies the interface on which packets come in
+# -o, --out-interface device               Specify the interface from which the packet exits
+# -j, --jump          target               Specify the action when the conditions are met
+# -t, --table         table                Specify a table
+# -m state --state    situation            Specify the packet status as a condition
+#                                          NEW, ESTABLISHED, RELATED, INVALID can be specified for state.
+# !                                        Invert the condition (other than)
+###########################################################
 
-# Executables
-IPT=$(which iptables)
-IPT6=$(which ip6tables)
-IPSET=$(which ipset)
+# path
 
-# VARs
-IFACE="eth0"
-ADMIN="181.191.0.0/16"
-SSHPORT="4949"
-OPENVPNPORT="1194"
-DNS_SERVER="204.152.204.100,204.152.204.10"
-PACKAGE_SERVER="archive.ubuntu.com security.ubuntu.com"
-IPSET_HOSTS="104.16.37.47,104.16.38.47,104.20.4.21,104.20.5.21,138.201.14.212,151.101.4.133,185.21.103.31,188.40.39.38,199.188.221.36,208.70.186.167,209.124.55.40"
-TCP_SERVICES="4949"
-UDP_SERVICES="1194"
-#HTTP_PORTS="80,443"
-#WIREGUARDPORT="51820"
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
 
-echo "\e[32mEnabling Firewall..."
 
-# Flush old rules, custom tables and sets
-#echo "\e[32mFlushing old rules, tables and sets..."
-#$IPT -F
-#$IPT -X
-#$IPT -t nat -F
-#$IPT -t nat -X
-#$IPT -t mangle -F
-#$IPT -t mangle -X
-#$IPT -t raw -F
-#$IPT -t raw -X
-#$IPT -t security -F
-#$IPT -t security -X
-#$IPSET -F
-#$IPSET -X
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+NO_COLOR="\033[0m"
 
-# IPv4 rules
 
-# Loopback rules
-echo "\e[32mEnabling \e[33mloopback rules..."
-$IPT -A INPUT -i lo -j ACCEPT -m comment --comment "LOOPBACK INTERFACE"
-$IPT -A INPUT -i !lo -d 127.0.0.0/8 -j REJECT -m comment --comment "LOOPBACK INTERFACE"
-$IPT -A OUTPUT -o lo -j ACCEPT -m comment --comment "LOOPBACK INTERFACE"
-$IPT -A OUTPUT -o !lo -d 127.0.0.0/8 -j REJECT -m comment --comment "LOOPBACK INTERFACE"
+###########################################################
+# IP definition
+# Define as needed. Works without definition
+###########################################################
 
-# Stateful table
-echo "\e[33mMaking \e[33mthe firegual statefull..."
-$IPT -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT -m comment --comment "STATEFULL"
+# Internal network range
+# LOCAL_NET="xxx.xxx.xxx.xxx/xx"
 
-# This should be one of the first rules, so dns lookups are already allowed for your other rules
-# Allow outgoing DNS queries
-echo "\e[32mAllowing \e[33m OUT DNS lookups (udp port 53) to server \e[32m'$DNS_SERVER'..."
-for ip in $DNS_SERVER
-do
-	$IPT -A OUTPUT -o $IFACE -p udp -d $ip --dport 53 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT -m comment --comment "OUT UDP DNS LOOKUPS"
-	$IPT -A INPUT -i $IFACE -p udp -s $ip --sport 53 -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "INC UDP DNS LOOKUPS"
-done
+# A somewhat restrictive internal network
+# LIMITED_LOCAL_NET="xxx.xxx.xxx.xxx/xx"
 
-# Allowing repositories
-echo "\e[32mEnabling \e[33mRepositories..."
-for repositories in $PACKAGE_SERVER
-do
-	$IPT -A OUTPUT -o $IFACE -p tcp -d "$repositories" -m multiport --dports 80,443 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT -m comment --comment "REPOS"
-	$IPT -A INPUT -i $IFACE -p tcp -s "$repositories" -m multiport --sports 80,443 -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "REPOS"
-done
+# ZABBIX server IP
+# ZABBIX_IP="xxx.xxx.xxx.xxx"
 
-# Allowing IPSET hosts to retrieve bad guys IP's
-echo "\e[32mEnabling \e[33mIPSET hosts..."
-for hosts in $IPSET_HOSTS
-do
-	$IPT -A OUTPUT -o $IFACE -p tcp -d "$IPSET_HOSTS" -m multiport --dports 80,443 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT -m comment --comment "IPSET HOSTS"
-	$IPT -A INPUT -i $IFACE -p tcp -s "$IPSET_HOSTS" -m multiport --sports 80,443 -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "IPSET HOSTS"
-done
+# Define a setting that represents all IPs
+# ANY="0.0.0.0/0"
 
-# Enable IPSET blacklists - logs blocked attempts and drop packets
-echo "\e[32mEnabling \e[33mIPSET 'blacklist'..."
-$IPSET restore < /etc/ipset-blacklist/ip-blacklist.restore
-$IPT -A INPUT -i $IFACE -m set --match-set blacklist src -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[IPSET] Blacklist: "
-$IPT -A INPUT -i $IFACE -m set --match-set blacklist src -j DROP -m comment --comment "DROP IPSET BLACKLIST"
+# trusted hosts (array)
+# ALLOW_HOSTS=(
+# 	"xxx.xxx.xxx.xxx"
+# 	"xxx.xxx.xxx.xxx"
+# 	"xxx.xxx.xxx.xxx"
+# )
 
-# LOG and DROP script kiddies scanning ports
-echo "\e[32mActivating \e[33mport scanner detector..."
-$IPSET -N bad_guys iphash
-$IPT -A INPUT -i $IFACE -p tcp -m set --match-set bad_guys src -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[IPSET] TCP bad_guy: "
-$IPT -A INPUT -i $IFACE -p udp -m set --match-set bad_guys src -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[IPSET] UDP bad_guy: "
-$IPT -A INPUT -i $IFACE -p tcp ! --dport $TCP_SERVICES -j SET --add-set bad_guys src -m comment --comment "[TCP PORT SCAN]"
-$IPT -A INPUT -i $IFACE -p udp ! --dport $UDP_SERVICES -j SET --add-set bad_guys src -m comment --comment "[UDP PORT SCAN]"
-$IPT -A INPUT -m set --match-set bad_guys src -j DROP -m comment --comment "[DROP PORT SCANNERS]"
+# ban list unconditional discard list (array)
+# DENY_HOSTS=(
+# 	"xxx.xxx.xxx.xxx"
+# 	"xxx.xxx.xxx.xxx"
+# 	"xxx.xxx.xxx.xxx"
+# )
 
-# Admin IPs Version 2
-echo "\e[32mEnabling \e[33madmin's IP..."
-$IPT -A INPUT -s $ADMIN -j ACCEPT -m comment --comment "ADMIN's IP"
-$IPT -A OUTPUT -d $ADMIN -j ACCEPT -m comment --comment "ADMIN's IP"
+###########################################################
+# port definition
+###########################################################
 
-# Allow OpenVPN and INC and OUT traffic
-$IPT -A INPUT -i eth0 -p udp --dport $OPENVPNPORT -m conntrack --ctstate NEW,RELATED,ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT INC OpenVPN"
-$IPT -A OUTPUT -o eth0 -p udp --sport $OPENVPNPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT OUT OpenVPN"
+SSH=22
+FTP=20,21
+DNS=53
+SMTP=25,465,587
+POP3=110,995
+IMAP=143,993
+HTTP=80,443
+IDENT=113
+NTP=123
+MYSQL=3306
+NET_BIOS=135,137,138,139,445
+DHCP=67,68
 
-# OpenVPN Masquerade outgoing traffic
-echo "\e[32mMASQUERADING \e[33mOpenVPN... "
-$IPT -t nat -A POSTROUTING -o eth0 -j MASQUERADE -m comment --comment "MASQUARADE out IP"
+##########################################################
+# The program must be executed as the root user
+###########################################################
 
-# Forward everything
-$IPT -A FORWARD -j ACCEPT -m comment --comment "FORWARDING all"
+if [ $((UID)) != 0 ]; then
+  echo -e "$RED ERROR: You need to run this script as ROOT user $NO_COLOR" >&2
+  exit 2
+fi
 
-# Allow Echo Request and Reply
-echo "\e[32mAllow \e[33mecho requests and reply..."
-$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type echo-request -m limit --limit 1/sec -j ACCEPT -m comment --comment "ACCEPT ICMP REQUEST"
-$IPT -A OUTPUT -o $IFACE -p icmp -m icmp --icmp-type echo-reply -j ACCEPT -m comment --comment "ACCEPT ICMP REPLY"
 
-# All tcp connections should begin with syn
-echo "\e[33mLogging and Forcing connections to begin with SYN..."
-$IPT -A INPUT -i $IFACE -p tcp ! --syn -m conntrack --ctstate NEW -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[NON SYN CONN]: "
-$IPT -A INPUT -i $IFACE -p tcp ! --syn -m conntrack --ctstate NEW -j DROP -m comment --comment "DROP NON SYN CONN"
+###########################################################
+# Features
+###########################################################
 
-# Blocking excessive syn packet
-echo "\e[31mBlocking \e[33mSYN packets..."
-$IPT -N SYN_FLOOD
-$IPT -A INPUT -p tcp --syn -j SYN_FLOOD
-$IPT -A SYN_FLOOD -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[SYN FLOOD]: "
-$IPT -A SYN_FLOOD -j DROP -m comment --comment "DROP EXCESSIVE SYN"
+# iptables initialization, delete all rules
+initialize()
+{
+	iptables -F # initialization table
+	iptables -X # delete chain
+	iptables -Z # clear packet counter byte counter
+	iptables -P INPUT   ACCEPT
+	iptables -P OUTPUT  ACCEPT
+	iptables -P FORWARD ACCEPT
+}
 
-# LOG and DROP INVALID packets
-echo "\e[31mDropping \e[33mINVALID packets... "
-$IPT -A INPUT -i $IFACE -m conntrack --ctstate INVALID -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[INVALID PACKETS]: "
-$IPT -A INPUT -i $IFACE -m conntrack --ctstate INVALID -j DROP -m comment --comment "DROP INVALID PACKETS"
+#
+finailize()
+{
+	service iptables save && # Save settings
+	service iptables restart && # Try restarting with the saved one
+	return 0
+	return 1
+}
 
-# Protection against spoofing attacks
-echo "\e[33mLogging and \e[31mdropping \e[33mspooffing \e[31mattacks"
-$IPT -t raw -I PREROUTING -m rpfilter --invert -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[SPOOFING]: "
-$IPT -t raw -I PREROUTING -m rpfilter --invert -j DROP
+# For development
+if [ "$1" == "-t" ]
+then
+	iptables() { echo "iptables $@"; }
+	finailize() { echo "finailize"; }
+fi
 
-# Chain for preventing SSH brute-force attacks. Permits 10 new connections within 5 minutes from a single host
-# then drops incomming connections from that host.
-# Beyond a burst of 100 connections we log at up 1 attempt per second to prevent filling of logs
-$IPT -N SSHBF
-$IPT -N LOG_AND_DROP
-$IPT -A INPUT -p tcp -m multiport --dports $SSHPORT,22 -m conntrack --ctstate NEW -j SSHBF
-$IPT -A SSHBF -m recent --name sshnerds --rttl --rcheck --hitcount 3 --seconds 10 -j LOG_AND_DROP
-$IPT -A SSHBF -m recent --name sshnerds --rttl --rcheck --hitcount 4 --seconds 1800 -j LOG_AND_DROP
-$IPT -A LOG_AND_DROP -j LOG --log-prefix "[SSHBF]: " --log-level 7
-$IPT -A LOG_AND_DROP -j DROP
+###########################################################
+# Initialize iptables
+###########################################################
+initialize
 
-# LOG and DROP all packets that are going to broadcast, multicast or anycast address
-echo "\e[33mLogging and \e[31mdropping \e[33mbroadcast, multicast or anycast address \e[31mattacks"
-$IPT -A INPUT -i $IFACE -m addrtype --dst-type BROADCAST -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[BROADCAST SPOOF]: "
-$IPT -A INPUT -i $IFACE -m addrtype --dst-type MULTICAST -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[MULTICAST SPOOF]: "
-$IPT -A INPUT -i $IFACE -m addrtype --dst-type ANYCAST -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[ANYCAST SPOOF]: "
-$IPT -A INPUT -i $IFACE -m addrtype --dst-type BROADCAST -j DROP
-$IPT -A INPUT -i $IFACE -m addrtype --dst-type MULTICAST -j DROP
-$IPT -A INPUT -i $IFACE -m addrtype --dst-type ANYCAST -j DROP
+###########################################################
+# Policy decision
+###########################################################
+iptables -P INPUT   DROP # All DROP. It's a good idea to close all the holes before opening the required ports.
+iptables -P OUTPUT  ACCEPT
+iptables -P FORWARD DROP
 
-# Drop all packets to port 111 except those from localhost
-echo "\e[31mRejecting \e[33mall packets to port 111 excecpt packets from \e[32mlocalhost... "
-$IPT -A INPUT ! -s 127.0.0.0/8 -p tcp --dport 111 -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[LOCAL SPOOFED]: "
-$IPT -A INPUT ! -s 127.0.0.0/8 -p tcp --dport 111 -j REJECT --reject-with tcp-reset -m comment --comment "REJECT SPOOF"
+###########################################################
+# Trusted hosts allowed
+###########################################################
 
-# kill off identd quick
-echo "\e[31mKilling \e[33midentd..."
-$IPT -A INPUT -i $IFACE -p tcp --dport 113 -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[IDENTD]: "
-$IPT -A INPUT -i $IFACE -p tcp --dport 113 -j REJECT --reject-with tcp-reset -m comment --comment "REJECT IDENTD"
+# local host
+# lo stands for local loopback and refers to your own host
+iptables -A INPUT -i lo -j ACCEPT # SELF -> SELF
 
-# ICMP packets should fit in a Layer 2 frame, thus they should never be fragmented
-# Fragmented icmp packets are a typical sign of a denial of service attack
-echo "\e[36mLOG \e[33mand \e[31mDROP \e[33mfragmented icmp packets..."
-$IPT -A INPUT -i $IFACE -p icmp --fragment -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[FRAGMENTED ICMP]: "
-$IPT -A INPUT -i $IFACE -p icmp --fragment -j DROP -m comment --comment "DROP FRAGMENTED ICMP"
+# Local network
+# $LOCAL_NET Allows communication with other servers on the LAN if is set
+if [ "$LOCAL_NET" ]
+then
+	iptables -A INPUT -p tcp -s $LOCAL_NET -j ACCEPT # LOCAL_NET -> SELF
+fi
 
-# Chain for preventing ping flooding - up to 2 pings per second from a single
-# source, again with log limiting. Also prevents us from ICMP REPLY flooding
-# some victim when replying to ICMP ECHO from a spoofed source.
-echo "\e[31mDROP \e[33mIMCP FLOOD..."
-$IPT -N ICMPFLOOD
-$IPT -A ICMPFLOOD -m recent --set --name ICMP --rsource
-$IPT -A ICMPFLOOD -m recent --update --seconds 1 --hitcount 2 --name ICMP --rsource --rttl -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[ICMP FLOOD]: "
-$IPT -A ICMPFLOOD -m recent --update --seconds 1 --hitcount 2 --name ICMP --rsource --rttl -j DROP -m comment --comment "DROP ICMP FLOOD"
+# Trusted host
+# $ALLOW_HOSTS Allows interaction with the host if is set
+if [ "${ALLOW_HOSTS}" ]
+then
+	for allow_host in ${ALLOW_HOSTS[@]}
+	do
+		iptables -A INPUT -p tcp -s $allow_host -j ACCEPT # allow_host -> SELF
+	done
+fi
 
-# Stop smurf attacks
-echo "\e[32mEnabling \e[33msmurf \e[31mattack \e[33mdetector..."
-$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type address-mask-request -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[SMURF MASK]: "
-$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type timestamp-request -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "[SMURF TIMESTAMP]: "
-$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type address-mask-request -j DROP -m comment --comment "DROP SMURF ATTACK"
-$IPT -A INPUT -i $IFACE -p icmp -m icmp --icmp-type timestamp-request -j DROP -m comment --comment "DROP SMURF ATTACK"
-$IPT -A INPUT -i $IFACE -p icmp -j DROP
+###########################################################
+# $DENY_HOSTS Access from is discarded
+###########################################################
+if [ "${DENY_HOSTS}" ]
+then
+	for deny_host in ${DENY_HOSTS[@]}
+	do
+		iptables -A INPUT -s $deny_host -m limit --limit 1/s -j LOG --log-prefix "deny_host: "
+		iptables -A INPUT -s $deny_host -j DROP
+	done
+fi
 
-# Log incoming traffic in case some smart nerd got through all my sh!t
-echo "\e[32mEnabling INC logging..."
-$IPT -A INPUT -i $IFACE -m limit --limit 1/minute --limit-burst 3 -j LOG --log-prefix "[INC DEBUG]: "
+###########################################################
+# Packet communication is allowed after session is established
+###########################################################
+iptables -A INPUT  -p tcp -m state --state ESTABLISHED,RELATED -j ACCEPT
 
-# Log outgoing traffic before dropping everything for debug purpose
-echo "\e[32mEnabling OUT logging..."
-$IPT -A OUTPUT -o $IFACE -m limit --limit 1/minute --limit-burst 3 -j LOG --log-prefix "[OUT DEBUG]: "
+###########################################################
+# Attack countermeasures: Stealth Scan
+###########################################################
+iptables -N STEALTH_SCAN # "STEALTH_SCAN" Make a chain with the name
+iptables -A STEALTH_SCAN -j LOG --log-prefix "stealth_scan_attack: "
+iptables -A STEALTH_SCAN -j DROP
 
-# All policies set to DROP
-echo "\e[33mSetting up \e[31mDROP \e[33mpolicy..."
-$IPT --policy INPUT DROP
-$IPT --policy OUTPUT DROP
-$IPT --policy FORWARD ACCEPT
+# Packets that look like stealth scans "STEALTH_SCAN" Jump to the chain
+iptables -A INPUT -p tcp --tcp-flags SYN,ACK SYN,ACK -m state --state NEW -j STEALTH_SCAN
+iptables -A INPUT -p tcp --tcp-flags ALL NONE -j STEALTH_SCAN
 
-# Allow SSH
-#echo "\e[32mAllowing \e[33mSSH... "
-#$IPT -A INPUT -i $IFACE -p tcp -s $ADMIN --dport $SSHPORT -m conntrack --ctstate NEW -j ACCEPT -m comment --comment "ACCEPT SSH"
-#$IPT -A OUTPUT -o $IFACE -p tcp -d $ADMIN --sport $SSHPORT -m conntrack --ctstate ESTABLISHED -j ACCEPT -m comment --comment "ACCEPT SSH"
+iptables -A INPUT -p tcp --tcp-flags SYN,FIN SYN,FIN         -j STEALTH_SCAN
+iptables -A INPUT -p tcp --tcp-flags SYN,RST SYN,RST         -j STEALTH_SCAN
+iptables -A INPUT -p tcp --tcp-flags ALL SYN,RST,ACK,FIN,URG -j STEALTH_SCAN
 
-# Rate Limit
-#echo "\e[32mEnabling \e[33mRate Limiter"
-#$IPT -N RATE_LIMIT
-#$IPT -A INPUT -i $IFACE -p all -m conntrack --ctstate NEW -j RATE_LIMIT
-#$IPT -A RATE_LIMIT -m limit --limit 50/sec --limit-burst 20 --jump ACCEPT -m comment --comment "GLOBAL CONN LIMIT"
-#$IPT -A RATE_LIMIT -m hashlimit --hashlimit-mode srcip --hashlimit-upto 50/sec --hashlimit-burst 20 --hashlimit-name conn_rate_limit -j ACCEPT -m comment --comment "LIMIT PER IP"
-#$IPT -A RATE_LIMIT -m limit --limit 1/sec -j LOG --log-prefix "iptables [RATE LIMIT] exceed: "
-#$IPT -A RATE_LIMIT -j DROP
+iptables -A INPUT -p tcp --tcp-flags FIN,RST FIN,RST -j STEALTH_SCAN
+iptables -A INPUT -p tcp --tcp-flags ACK,FIN FIN     -j STEALTH_SCAN
+iptables -A INPUT -p tcp --tcp-flags ACK,PSH PSH     -j STEALTH_SCAN
+iptables -A INPUT -p tcp --tcp-flags ACK,URG URG     -j STEALTH_SCAN
 
-# Allow rsync from a specific network
-#$IPT -A INPUT -i $IFACE -p tcp -s 192.168.101.0/24 --dport 873 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-#$IPT -A OUTPUT -o $IFACE -p tcp --sport 873 -m conntrack --ctstate ESTABLISHED -j ACCEPT
+###########################################################
+# Attack countermeasures: Port scan by fragment packet, DOS attack
+# namap -v -sF Measures such as
+###########################################################
+iptables -A INPUT -f -j LOG --log-prefix 'fragment_packet:'
+iptables -A INPUT -f -j DROP
 
-# DOS HTTP Attack prevention
-# Need re-evaluation, the current rates do not allow for WordPress image upload features
-# Plus, the timings reportedly slows down current site browsing to an unusable level - hence the commented out "DROP"
-#$IPT -A INPUT -i $IFACE -p tcp --dport 80 -m limit --limit 45/minute --limit-burst 300 -j ACCEPT
-#$IPT -A INPUT -i $IFACE -p tcp --dport 80 -m hashlimit --hashlimit-upto 80/min --hashlimit-burst 800 --hashlimit-mode srcip --hashlimit-name http -j ACCEPT
-#$IPT -A INPUT -i $IFACE -p tcp --dport 80 -j ACCEPT
-#$IPT -A INPUT -i $IFACE -p tcp --dport 443 -m limit --limit 45/minute --limit-burst 300 -j ACCEPT
-#$IPT -A INPUT -i $IFACE -p tcp --dport 443 -m hashlimit --hashlimit-upto 80/min --hashlimit-burst 800 --hashlimit-mode srcip --hashlimit-name https -j ACCEPT
-#$IPT -A INPUT -i $IFACE -p tcp --dport 443 -j ACCEPT
+###########################################################
+# Attack countermeasures: Ping of Death
+###########################################################
+# Discard after 10 pings more than once per second
+iptables -N PING_OF_DEATH # "PING_OF_DEATH" Make a chain with the name
+iptables -A PING_OF_DEATH -p icmp --icmp-type echo-request \
+         -m hashlimit \
+         --hashlimit 1/s \
+         --hashlimit-burst 10 \
+         --hashlimit-htable-expire 300000 \
+         --hashlimit-mode srcip \
+         --hashlimit-name t_PING_OF_DEATH \
+         -j RETURN
 
-# IPv6 rules
+# Discard ICMP that exceeds the limit
+iptables -A PING_OF_DEATH -j LOG --log-prefix "ping_of_death_attack: "
+iptables -A PING_OF_DEATH -j DROP
 
-# Script to block IPs reading a file, same scheme might be used for $blacklist or $whitelist IPs
-#if [ -f geo-ip-block.txt ]
-#then
-#        for BLOCKED_IP in 'cat geo-ip-block.txt'
-#        do
-#                iptables -A INPUT -s $BLOCKED_IP -j DROP
-#        done
-#else
-#        echo "No Geo-IP Blocking file exists"
-#fi
+# ICMP jumps to "PING_OF_DEATH" chain
+iptables -A INPUT -p icmp --icmp-type echo-request -j PING_OF_DEATH
 
-## Uncomment to test new firewall rules
-#sleep 60 && sh -c /home/chuck/bin/killgual.sh
+###########################################################
+# Attack countermeasures: SYN Flood Attack
+# In addition to this, Syn Cookies should be enabled.
+###########################################################
+iptables -N SYN_FLOOD # "SYN_FLOOD" Make a chain with the name
+iptables -A SYN_FLOOD -p tcp --syn \
+         -m hashlimit \
+         --hashlimit 200/s \
+         --hashlimit-burst 3 \
+         --hashlimit-htable-expire 300000 \
+         --hashlimit-mode srcip \
+         --hashlimit-name t_SYN_FLOOD \
+         -j RETURN
+
+# Commentary
+# -m hashlimit                       Use hashlimit instead of limit to limit per host
+# --hashlimit 200/s                  Up to 200 connections per second
+# --hashlimit-burst 3                If the connection exceeding the above upper limit is made 3 times in a row, the limit will be applied.
+# --hashlimit-htable-expire 300000   Validity period of records in the management table (unit: ms)
+# --hashlimit-mode srcip             Manage the number of requests by source address
+# --hashlimit-name t_SYN_FLOOD       /proc/net/ipt_hashlimit Hash table name stored in
+# -j RETURN                          If within the limit, return to the parent chain
+
+# Discard SYN packets that exceed the limit
+iptables -A SYN_FLOOD -j LOG --log-prefix "syn_flood_attack: "
+iptables -A SYN_FLOOD -j DROP
+
+# SYN packets jump to the "SYN_FLOOD" chain
+iptables -A INPUT -p tcp --syn -j SYN_FLOOD
+
+###########################################################
+# Attack countermeasures: HTTP DoS/DDoS Attack
+###########################################################
+iptables -N HTTP_DOS # "HTTP_DOS" Make a chain with the name
+iptables -A HTTP_DOS -p tcp -m multiport --dports $HTTP \
+         -m hashlimit \
+         --hashlimit 1/s \
+         --hashlimit-burst 100 \
+         --hashlimit-htable-expire 300000 \
+         --hashlimit-mode srcip \
+         --hashlimit-name t_HTTP_DOS \
+         -j RETURN
+
+# Commentary
+# -m hashlimit                       Use hashlimit instead of limit to limit per host
+# --hashlimit 1/s                    Up to 1 connection per second
+# --hashlimit-burst 100              If you exceed the above upper limit 100 times in a row, you will be limited.
+# --hashlimit-htable-expire 300000   Validity period of records in the management table (unit: ms)
+# --hashlimit-mode srcip             Manage the number of requests by source address
+# --hashlimit-name t_HTTP_DOS        /proc/net/ipt_hashlimit Hash table name stored in
+# -j RETURN                          If within the limit, return to the parent chain
+
+# Destroy a connection that exceeds the limit
+iptables -A HTTP_DOS -j LOG --log-prefix "http_dos_attack: "
+iptables -A HTTP_DOS -j DROP
+
+# Packets to HTTP jump to the "HTTP_DOS" chain
+iptables -A INPUT -p tcp -m multiport --dports $HTTP -j HTTP_DOS
+
+###########################################################
+# Attack countermeasures: IDENT port probe
+# ident To prepare for future attacks by attackers using ident, or to prepare for user's
+# Perform a port survey to see if your system is vulnerable to attack
+# There is likely to be.
+# If we DROP, the response of the mail server etc. will be degraded, so REJECT
+###########################################################
+iptables -A INPUT -p tcp -m multiport --dports $IDENT -j REJECT --reject-with tcp-reset
+
+###########################################################
+# Attack countermeasures: SSH Brute Force
+# SSH prepares for password brute force attacks on servers that use password authentication
+# Allow connection attempts only 5 times per minute.
+# Use REJECT instead of DROP to prevent the SSH client side from repeating reconnection.
+# If the SSH server has password authentication ON, uncomment the following
+###########################################################
+# iptables -A INPUT -p tcp --syn -m multiport --dports $SSH -m recent --name ssh_attack --set
+# iptables -A INPUT -p tcp --syn -m multiport --dports $SSH -m recent --name ssh_attack --rcheck --seconds 60 --hitcount 5 -j LOG --log-prefix "ssh_brute_force: "
+# iptables -A INPUT -p tcp --syn -m multiport --dports $SSH -m recent --name ssh_attack --rcheck --seconds 60 --hitcount 5 -j REJECT --reject-with tcp-reset
+
+###########################################################
+# Attack countermeasures: FTP Brute Force
+# Since FTP is password authentication, it prepares for password brute force attacks.
+# Allow connection attempts only 5 times per minute.
+# Use REJECT instead of DROP to prevent the FTP client side from repeating reconnection.
+# If you have an FTP server running, uncomment the following
+###########################################################
+# iptables -A INPUT -p tcp --syn -m multiport --dports $FTP -m recent --name ftp_attack --set
+# iptables -A INPUT -p tcp --syn -m multiport --dports $FTP -m recent --name ftp_attack --rcheck --seconds 60 --hitcount 5 -j LOG --log-prefix "ftp_brute_force: "
+# iptables -A INPUT -p tcp --syn -m multiport --dports $FTP -m recent --name ftp_attack --rcheck --seconds 60 --hitcount 5 -j REJECT --reject-with tcp-reset
+
+###########################################################
+# discard broadcast packets
+###########################################################
+iptables -A INPUT -d 192.168.1.255   -j LOG --log-prefix "drop_broadcast: "
+iptables -A INPUT -d 192.168.1.255   -j DROP
+iptables -A INPUT -d 255.255.255.255 -j LOG --log-prefix "drop_broadcast: "
+iptables -A INPUT -d 255.255.255.255 -j DROP
+iptables -A INPUT -d 224.0.0.1       -j LOG --log-prefix "drop_broadcast: "
+iptables -A INPUT -d 224.0.0.1       -j DROP
+
+###########################################################
+# Input permission from all hosts (ANY)
+###########################################################
+
+# ICMP: Settings to respond to pingsv
+iptables -A INPUT -p icmp -j ACCEPT # ANY -> SELF
+
+# HTTP, HTTPS
+iptables -A INPUT -p tcp -m multiport --dports $HTTP -j ACCEPT # ANY -> SELF
+
+# SSH: If you want to limit the host, write the trusted host in TRUST_HOSTS and comment out the following
+iptables -A INPUT -p tcp -m multiport --dports $SSH -j ACCEPT # ANY -> SEL
+
+# FTP
+# iptables -A INPUT -p tcp -m multiport --dports $FTP -j ACCEPT # ANY -> SELF
+
+# DNS
+iptables -A INPUT -p tcp -m multiport --sports $DNS -j ACCEPT # ANY -> SELF
+iptables -A INPUT -p udp -m multiport --sports $DNS -j ACCEPT # ANY -> SELF
+
+# SMTP
+# iptables -A INPUT -p tcp -m multiport --sports $SMTP -j ACCEPT # ANY -> SELF
+
+# POP3
+# iptables -A INPUT -p tcp -m multiport --sports $POP3 -j ACCEPT # ANY -> SELF
+
+# IMAP
+# iptables -A INPUT -p tcp -m multiport --sports $IMAP -j ACCEPT # ANY -> SELF
+
+###########################################################
+# Allow input from local network (restricted)
+###########################################################
+
+if [ "$LIMITED_LOCAL_NET" ]
+then
+	# SSH
+	iptables -A INPUT -p tcp -s $LIMITED_LOCAL_NET -m multiport --dports $SSH -j ACCEPT # LIMITED_LOCAL_NET -> SELF
+
+	# FTP
+	iptables -A INPUT -p tcp -s $LIMITED_LOCAL_NET -m multiport --dports $FTP -j ACCEPT # LIMITED_LOCAL_NET -> SELF
+
+	# MySQL
+	iptables -A INPUT -p tcp -s $LIMITED_LOCAL_NET -m multiport --dports $MYSQL -j ACCEPT # LIMITED_LOCAL_NET -> SELF
+fi
+
+###########################################################
+# Input permission from a specific host
+###########################################################
+
+if [ "$ZABBIX_IP" ]
+then
+	# Allow Zabbix related
+	iptables -A INPUT -p tcp -s $ZABBIX_IP --dport 10050 -j ACCEPT # Zabbix -> SELF
+fi
+
+##################################################################
+# other than that
+# Log and discard anything that does not apply to the above rules
+##################################################################
+iptables -A INPUT  -j LOG --log-prefix "drop: "
+iptables -A INPUT  -j DROP
+
+
+# For development
+if [ "$1" == "-t" ]
+then
+	exit 0;
+fi
+
+###############################################################
+# SSH lockout workaround
+# Sleep for 30 seconds and then reset iptables.
+# If SSH isn't locked out, you should be able to press Ctrl-C.
+###############################################################
+trap 'finailize && exit 0' 2 # Trap Ctrl-C
+echo "In 30 seconds iptables will be automatically reset."
+echo "Don't forget to test new SSH connection!"
+echo "If there is no problem then press Ctrl-C to finish."
+sleep 30
+echo "rollback..."
+initialize
