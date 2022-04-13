@@ -1,36 +1,36 @@
 #!/bin/bash
 
 ###########################################################
-# 用語の統一
-# わかりやすさのためルールとコメントの用語を以下に統一する
-# ACCEPT : 許可
-# DROP   : 破棄
-# REJECT : 拒否
-###########################################################
+# Unification of terms
+# The terms of the rules and comments are unified below for the sake of clarity
+# ACCEPT : accept packets
+# DROP   : destruction
+# REJECT : rejection
+##########################################################
 
 ###########################################################
-# チートシート
+# Cheat sheet
 #
-# -A, --append       指定チェインに1つ以上の新しいルールを追加
-# -D, --delete       指定チェインから1つ以上のルールを削除
-# -P, --policy       指定チェインのポリシーを指定したターゲットに設定
-# -N, --new-chain    新しいユーザー定義チェインを作成
-# -X, --delete-chain 指定ユーザー定義チェインを削除
-# -F                 テーブル初期化
+# -A, --append       Add one or more new rules to a given chain
+# -D, --delete       Remove one or more rules from the specified chain
+# -P, --policy       Set the policy of the specified chain to the specified target
+# -N, --new-chain    Create a new user-defined chain
+# -X, --delete-chain Delete the specified user-defined chain
+# -F                 Table initialization
 #
-# -p, --protocol      プロコトル         プロトコル(tcp、udp、icmp、all)を指定
-# -s, --source        IPアドレス[/mask]  送信元のアドレス。IPアドレスorホスト名を記述
-# -d, --destination   IPアドレス[/mask]  送信先のアドレス。IPアドレスorホスト名を記述
-# -i, --in-interface  デバイス           パケットが入ってくるインターフェイスを指定
-# -o, --out-interface デバイス           パケットが出ていくインターフェイスを指定
-# -j, --jump          ターゲット         条件に合ったときのアクションを指定
-# -t, --table         テーブル           テーブルを指定
-# -m state --state    状態              パケットの状態を条件として指定
-#                                       stateは、 NEW、ESTABLISHED、RELATED、INVALIDが指定できる
-# !                   条件を反転（～以外となる）
+# -p, --protocol      protocol             Specify protocol (tcp, udp, icmp, all)
+# -s, --source        IP address [/ mask]  Source address. Describe the IP address or host name
+# -d, --destination   IP address [/ mask]  Destination address. Describe the IP address or host name
+# -i, --in-interface  device               Specifies the interface on which packets come in
+# -o, --out-interface device               Specify the interface from which the packet exits
+# -j, --jump          target               Specify the action when the conditions are met
+# -t, --table         table                Specify a table
+# -m state --state    situation            Specify the packet status as a condition
+#                                          NEW, ESTABLISHED, RELATED, INVALID can be specified for state.
+# !                                        Invert the condition (other than)
 ###########################################################
 
-# 路径
+# path
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 
@@ -41,30 +41,30 @@ NO_COLOR="\033[0m"
 
 
 ###########################################################
-# IPの定義
-# 必要に応じて定義する。定義しなくても動作する。
+# IP definition
+# Define as needed. Works without definition
 ###########################################################
 
-# 内部网络范围
+# Internal network range
 # LOCAL_NET="xxx.xxx.xxx.xxx/xx"
 
-# 有一定限制性的内部网络
+# A somewhat restrictive internal network
 # LIMITED_LOCAL_NET="xxx.xxx.xxx.xxx/xx"
 
-# ZABBIX服务器IP
+# ZABBIX server IP
 # ZABBIX_IP="xxx.xxx.xxx.xxx"
 
-#定义一个代表所有IP的设置
+# Define a setting that represents all IPs
 # ANY="0.0.0.0/0"
 
-# 可信的主机（数组）
+# trusted hosts (array)
 # ALLOW_HOSTS=(
 # 	"xxx.xxx.xxx.xxx"
 # 	"xxx.xxx.xxx.xxx"
 # 	"xxx.xxx.xxx.xxx"
 # )
 
-# ban list 无条件的丢弃列表（数组）
+# ban list unconditional discard list (array)
 # DENY_HOSTS=(
 # 	"xxx.xxx.xxx.xxx"
 # 	"xxx.xxx.xxx.xxx"
@@ -72,7 +72,7 @@ NO_COLOR="\033[0m"
 # )
 
 ###########################################################
-# 端口定义
+# port definition
 ###########################################################
 
 SSH=22
@@ -89,7 +89,7 @@ NET_BIOS=135,137,138,139,445
 DHCP=67,68
 
 ##########################################################
-#必须使用root用户的身份执行该程序
+# The program must be executed as the root user
 ###########################################################
 
 if [ $((UID)) != 0 ]; then
@@ -99,30 +99,30 @@ fi
 
 
 ###########################################################
-# 功能
+# Features
 ###########################################################
 
-# iptables的初始化，删除所有的规则
-initialize() 
+# iptables initialization, delete all rules
+initialize()
 {
-	iptables -F # 初始化表
-	iptables -X # 删除链
-	iptables -Z # 清除包计数器字节计数器
+	iptables -F # initialization table
+	iptables -X # delete chain
+	iptables -Z # clear packet counter byte counter
 	iptables -P INPUT   ACCEPT
 	iptables -P OUTPUT  ACCEPT
 	iptables -P FORWARD ACCEPT
 }
 
-# 
+#
 finailize()
 {
-	service iptables save && # 設定の保存
-	service iptables restart && # 保存したもので再起動してみる
+	service iptables save && # Save settings
+	service iptables restart && # Try restarting with the saved one
 	return 0
 	return 1
 }
 
-# 開発用
+# For development
 if [ "$1" == "-t" ]
 then
 	iptables() { echo "iptables $@"; }
@@ -130,34 +130,34 @@ then
 fi
 
 ###########################################################
-# iptablesの初期化
+# Initialize iptables
 ###########################################################
 initialize
 
 ###########################################################
-# ポリシーの決定
+# Policy decision
 ###########################################################
-iptables -P INPUT   DROP # すべてDROP。すべての穴をふさいでから必要なポートを空けていくのが良い。
+iptables -P INPUT   DROP # All DROP. It's a good idea to close all the holes before opening the required ports.
 iptables -P OUTPUT  ACCEPT
 iptables -P FORWARD DROP
 
 ###########################################################
-# 信頼可能なホストは許可
+# Trusted hosts allowed
 ###########################################################
 
-# ローカルホスト
-# lo はローカルループバックのことで自分自身のホストを指す
+# local host
+# lo stands for local loopback and refers to your own host
 iptables -A INPUT -i lo -j ACCEPT # SELF -> SELF
 
-# ローカルネットワーク
-# $LOCAL_NET が設定されていれば LAN上の他のサーバとのやり取りを許可する
+# Local network
+# $LOCAL_NET Allows communication with other servers on the LAN if is set
 if [ "$LOCAL_NET" ]
 then
 	iptables -A INPUT -p tcp -s $LOCAL_NET -j ACCEPT # LOCAL_NET -> SELF
 fi
 
-# 信頼可能ホスト
-# $ALLOW_HOSTS が設定されていれば そのホストとのやり取りを許可する
+# Trusted host
+# $ALLOW_HOSTS Allows interaction with the host if is set
 if [ "${ALLOW_HOSTS}" ]
 then
 	for allow_host in ${ALLOW_HOSTS[@]}
@@ -167,7 +167,7 @@ then
 fi
 
 ###########################################################
-# $DENY_HOSTSからのアクセスは破棄
+# $DENY_HOSTS Access from is discarded
 ###########################################################
 if [ "${DENY_HOSTS}" ]
 then
@@ -179,18 +179,18 @@ then
 fi
 
 ###########################################################
-# セッション確立後のパケット疎通は許可
+# Packet communication is allowed after session is established
 ###########################################################
 iptables -A INPUT  -p tcp -m state --state ESTABLISHED,RELATED -j ACCEPT
 
 ###########################################################
-# 攻撃対策: Stealth Scan
+# Attack countermeasures: Stealth Scan
 ###########################################################
-iptables -N STEALTH_SCAN # "STEALTH_SCAN" という名前でチェーンを作る
+iptables -N STEALTH_SCAN # "STEALTH_SCAN" Make a chain with the name
 iptables -A STEALTH_SCAN -j LOG --log-prefix "stealth_scan_attack: "
 iptables -A STEALTH_SCAN -j DROP
 
-# ステルススキャンらしきパケットは "STEALTH_SCAN" チェーンへジャンプする
+# Packets that look like stealth scans "STEALTH_SCAN" Jump to the chain
 iptables -A INPUT -p tcp --tcp-flags SYN,ACK SYN,ACK -m state --state NEW -j STEALTH_SCAN
 iptables -A INPUT -p tcp --tcp-flags ALL NONE -j STEALTH_SCAN
 
@@ -204,17 +204,17 @@ iptables -A INPUT -p tcp --tcp-flags ACK,PSH PSH     -j STEALTH_SCAN
 iptables -A INPUT -p tcp --tcp-flags ACK,URG URG     -j STEALTH_SCAN
 
 ###########################################################
-# 攻撃対策: フラグメントパケットによるポートスキャン,DOS攻撃
-# namap -v -sF などの対策
+# Attack countermeasures: Port scan by fragment packet, DOS attack
+# namap -v -sF Measures such as
 ###########################################################
 iptables -A INPUT -f -j LOG --log-prefix 'fragment_packet:'
 iptables -A INPUT -f -j DROP
- 
+
 ###########################################################
-# 攻撃対策: Ping of Death
+# Attack countermeasures: Ping of Death
 ###########################################################
-# 毎秒1回を超えるpingが10回続いたら破棄
-iptables -N PING_OF_DEATH # "PING_OF_DEATH" という名前でチェーンを作る
+# Discard after 10 pings more than once per second
+iptables -N PING_OF_DEATH # "PING_OF_DEATH" Make a chain with the name
 iptables -A PING_OF_DEATH -p icmp --icmp-type echo-request \
          -m hashlimit \
          --hashlimit 1/s \
@@ -224,18 +224,18 @@ iptables -A PING_OF_DEATH -p icmp --icmp-type echo-request \
          --hashlimit-name t_PING_OF_DEATH \
          -j RETURN
 
-# 制限を超えたICMPを破棄
+# Discard ICMP that exceeds the limit
 iptables -A PING_OF_DEATH -j LOG --log-prefix "ping_of_death_attack: "
 iptables -A PING_OF_DEATH -j DROP
 
-# ICMP は "PING_OF_DEATH" チェーンへジャンプ
+# ICMP jumps to "PING_OF_DEATH" chain
 iptables -A INPUT -p icmp --icmp-type echo-request -j PING_OF_DEATH
 
 ###########################################################
-# 攻撃対策: SYN Flood Attack
-# この対策に加えて Syn Cookie を有効にすべし。
+# Attack countermeasures: SYN Flood Attack
+# In addition to this, Syn Cookies should be enabled.
 ###########################################################
-iptables -N SYN_FLOOD # "SYN_FLOOD" という名前でチェーンを作る
+iptables -N SYN_FLOOD # "SYN_FLOOD" Make a chain with the name
 iptables -A SYN_FLOOD -p tcp --syn \
          -m hashlimit \
          --hashlimit 200/s \
@@ -245,26 +245,26 @@ iptables -A SYN_FLOOD -p tcp --syn \
          --hashlimit-name t_SYN_FLOOD \
          -j RETURN
 
-# 解説
-# -m hashlimit                       ホストごとに制限するため limit ではなく hashlimit を利用する
-# --hashlimit 200/s                  秒間に200接続を上限にする
-# --hashlimit-burst 3                上記の上限を超えた接続が3回連続であれば制限がかかる
-# --hashlimit-htable-expire 300000   管理テーブル中のレコードの有効期間（単位：ms
-# --hashlimit-mode srcip             送信元アドレスでリクエスト数を管理する
-# --hashlimit-name t_SYN_FLOOD       /proc/net/ipt_hashlimit に保存されるハッシュテーブル名
-# -j RETURN                          制限以内であれば、親チェーンに戻る
+# Commentary
+# -m hashlimit                       Use hashlimit instead of limit to limit per host
+# --hashlimit 200/s                  Up to 200 connections per second
+# --hashlimit-burst 3                If the connection exceeding the above upper limit is made 3 times in a row, the limit will be applied.
+# --hashlimit-htable-expire 300000   Validity period of records in the management table (unit: ms)
+# --hashlimit-mode srcip             Manage the number of requests by source address
+# --hashlimit-name t_SYN_FLOOD       /proc/net/ipt_hashlimit Hash table name stored in
+# -j RETURN                          If within the limit, return to the parent chain
 
-# 制限を超えたSYNパケットを破棄
+# Discard SYN packets that exceed the limit
 iptables -A SYN_FLOOD -j LOG --log-prefix "syn_flood_attack: "
 iptables -A SYN_FLOOD -j DROP
 
-# SYNパケットは "SYN_FLOOD" チェーンへジャンプ
+# SYN packets jump to the "SYN_FLOOD" chain
 iptables -A INPUT -p tcp --syn -j SYN_FLOOD
 
 ###########################################################
-# 攻撃対策: HTTP DoS/DDoS Attack
+# Attack countermeasures: HTTP DoS/DDoS Attack
 ###########################################################
-iptables -N HTTP_DOS # "HTTP_DOS" という名前でチェーンを作る
+iptables -N HTTP_DOS # "HTTP_DOS" Make a chain with the name
 iptables -A HTTP_DOS -p tcp -m multiport --dports $HTTP \
          -m hashlimit \
          --hashlimit 1/s \
@@ -274,55 +274,55 @@ iptables -A HTTP_DOS -p tcp -m multiport --dports $HTTP \
          --hashlimit-name t_HTTP_DOS \
          -j RETURN
 
-# 解説
-# -m hashlimit                       ホストごとに制限するため limit ではなく hashlimit を利用する
-# --hashlimit 1/s                    秒間1接続を上限とする
-# --hashlimit-burst 100              上記の上限を100回連続で超えると制限がかかる
-# --hashlimit-htable-expire 300000   管理テーブル中のレコードの有効期間（単位：ms
-# --hashlimit-mode srcip             送信元アドレスでリクエスト数を管理する
-# --hashlimit-name t_HTTP_DOS        /proc/net/ipt_hashlimit に保存されるハッシュテーブル名
-# -j RETURN                          制限以内であれば、親チェーンに戻る
+# Commentary
+# -m hashlimit                       Use hashlimit instead of limit to limit per host
+# --hashlimit 1/s                    Up to 1 connection per second
+# --hashlimit-burst 100              If you exceed the above upper limit 100 times in a row, you will be limited.
+# --hashlimit-htable-expire 300000   Validity period of records in the management table (unit: ms)
+# --hashlimit-mode srcip             Manage the number of requests by source address
+# --hashlimit-name t_HTTP_DOS        /proc/net/ipt_hashlimit Hash table name stored in
+# -j RETURN                          If within the limit, return to the parent chain
 
-# 制限を超えた接続を破棄
+# Destroy a connection that exceeds the limit
 iptables -A HTTP_DOS -j LOG --log-prefix "http_dos_attack: "
 iptables -A HTTP_DOS -j DROP
 
-# HTTPへのパケットは "HTTP_DOS" チェーンへジャンプ
+# Packets to HTTP jump to the "HTTP_DOS" chain
 iptables -A INPUT -p tcp -m multiport --dports $HTTP -j HTTP_DOS
 
 ###########################################################
-# 攻撃対策: IDENT port probe
-# identを利用し攻撃者が将来の攻撃に備えるため、あるいはユーザーの
-# システムが攻撃しやすいかどうかを確認するために、ポート調査を実行
-# する可能性があります。
-# DROP ではメールサーバ等のレスポンス低下になるため REJECTする
+# Attack countermeasures: IDENT port probe
+# ident To prepare for future attacks by attackers using ident, or to prepare for user's
+# Perform a port survey to see if your system is vulnerable to attack
+# There is likely to be.
+# If we DROP, the response of the mail server etc. will be degraded, so REJECT
 ###########################################################
 iptables -A INPUT -p tcp -m multiport --dports $IDENT -j REJECT --reject-with tcp-reset
 
 ###########################################################
-# 攻撃対策: SSH Brute Force
-# SSHはパスワード認証を利用しているサーバの場合、パスワード総当り攻撃に備える。
-# 1分間に5回しか接続トライをできないようにする。
-# SSHクライアント側が再接続を繰り返すのを防ぐためDROPではなくREJECTにする。
-# SSHサーバがパスワード認証ONの場合、以下をアンコメントアウトする
+# Attack countermeasures: SSH Brute Force
+# SSH prepares for password brute force attacks on servers that use password authentication
+# Allow connection attempts only 5 times per minute.
+# Use REJECT instead of DROP to prevent the SSH client side from repeating reconnection.
+# If the SSH server has password authentication ON, uncomment the following
 ###########################################################
 # iptables -A INPUT -p tcp --syn -m multiport --dports $SSH -m recent --name ssh_attack --set
 # iptables -A INPUT -p tcp --syn -m multiport --dports $SSH -m recent --name ssh_attack --rcheck --seconds 60 --hitcount 5 -j LOG --log-prefix "ssh_brute_force: "
 # iptables -A INPUT -p tcp --syn -m multiport --dports $SSH -m recent --name ssh_attack --rcheck --seconds 60 --hitcount 5 -j REJECT --reject-with tcp-reset
 
 ###########################################################
-# 攻撃対策: FTP Brute Force
-# FTPはパスワード認証のため、パスワード総当り攻撃に備える。
-# 1分間に5回しか接続トライをできないようにする。
-# FTPクライアント側が再接続を繰り返すのを防ぐためDROPではなくREJECTにする。
-# FTPサーバを立ち上げている場合、以下をアンコメントアウトする
+# Attack countermeasures: FTP Brute Force
+# Since FTP is password authentication, it prepares for password brute force attacks.
+# Allow connection attempts only 5 times per minute.
+# Use REJECT instead of DROP to prevent the FTP client side from repeating reconnection.
+# If you have an FTP server running, uncomment the following
 ###########################################################
 # iptables -A INPUT -p tcp --syn -m multiport --dports $FTP -m recent --name ftp_attack --set
 # iptables -A INPUT -p tcp --syn -m multiport --dports $FTP -m recent --name ftp_attack --rcheck --seconds 60 --hitcount 5 -j LOG --log-prefix "ftp_brute_force: "
 # iptables -A INPUT -p tcp --syn -m multiport --dports $FTP -m recent --name ftp_attack --rcheck --seconds 60 --hitcount 5 -j REJECT --reject-with tcp-reset
 
 ###########################################################
-# 丢弃广播包
+# discard broadcast packets
 ###########################################################
 iptables -A INPUT -d 192.168.1.255   -j LOG --log-prefix "drop_broadcast: "
 iptables -A INPUT -d 192.168.1.255   -j DROP
@@ -332,16 +332,16 @@ iptables -A INPUT -d 224.0.0.1       -j LOG --log-prefix "drop_broadcast: "
 iptables -A INPUT -d 224.0.0.1       -j DROP
 
 ###########################################################
-# 全ホスト(ANY)からの入力許可
+# Input permission from all hosts (ANY)
 ###########################################################
 
-# ICMP: ping に応答する設定
+# ICMP: Settings to respond to pingsv
 iptables -A INPUT -p icmp -j ACCEPT # ANY -> SELF
 
 # HTTP, HTTPS
 iptables -A INPUT -p tcp -m multiport --dports $HTTP -j ACCEPT # ANY -> SELF
 
-# SSH: ホストを制限する場合は TRUST_HOSTS に信頼ホストを書き下記をコメントアウトする
+# SSH: If you want to limit the host, write the trusted host in TRUST_HOSTS and comment out the following
 iptables -A INPUT -p tcp -m multiport --dports $SSH -j ACCEPT # ANY -> SEL
 
 # FTP
@@ -361,14 +361,14 @@ iptables -A INPUT -p udp -m multiport --sports $DNS -j ACCEPT # ANY -> SELF
 # iptables -A INPUT -p tcp -m multiport --sports $IMAP -j ACCEPT # ANY -> SELF
 
 ###########################################################
-# ローカルネットワーク(制限付き)からの入力許可
+# Allow input from local network (restricted)
 ###########################################################
 
 if [ "$LIMITED_LOCAL_NET" ]
 then
 	# SSH
 	iptables -A INPUT -p tcp -s $LIMITED_LOCAL_NET -m multiport --dports $SSH -j ACCEPT # LIMITED_LOCAL_NET -> SELF
-	
+
 	# FTP
 	iptables -A INPUT -p tcp -s $LIMITED_LOCAL_NET -m multiport --dports $FTP -j ACCEPT # LIMITED_LOCAL_NET -> SELF
 
@@ -377,35 +377,35 @@ then
 fi
 
 ###########################################################
-# 特定ホストからの入力許可
+# Input permission from a specific host
 ###########################################################
 
 if [ "$ZABBIX_IP" ]
 then
-	# Zabbix関連を許可
+	# Allow Zabbix related
 	iptables -A INPUT -p tcp -s $ZABBIX_IP --dport 10050 -j ACCEPT # Zabbix -> SELF
 fi
 
-###########################################################
-# それ以外
-# 上記のルールにも当てはまらなかったものはロギングして破棄
-###########################################################
+##################################################################
+# other than that
+# Log and discard anything that does not apply to the above rules
+##################################################################
 iptables -A INPUT  -j LOG --log-prefix "drop: "
 iptables -A INPUT  -j DROP
 
 
-# 開発用
+# For development
 if [ "$1" == "-t" ]
 then
 	exit 0;
 fi
 
-###########################################################
-# SSH 締め出し回避策
-# 30秒間スリープしてその後 iptables をリセットする。
-# SSH が締め出されていなければ、 Ctrl-C を押せるはず。
-###########################################################
-trap 'finailize && exit 0' 2 # Ctrl-C をトラップする
+###############################################################
+# SSH lockout workaround
+# Sleep for 30 seconds and then reset iptables.
+# If SSH isn't locked out, you should be able to press Ctrl-C.
+###############################################################
+trap 'finailize && exit 0' 2 # Trap Ctrl-C
 echo "In 30 seconds iptables will be automatically reset."
 echo "Don't forget to test new SSH connection!"
 echo "If there is no problem then press Ctrl-C to finish."
