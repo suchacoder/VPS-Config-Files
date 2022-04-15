@@ -15,7 +15,7 @@ IPTABLES=$(which iptables)
 IPSET=$(which ipset)
 
 # Define sysadmin's IP
-ADMIN="181.191.143.0/32"
+ADMIN="xxx.xxx.xxx"
 
 # In case you wanna whitelist a nerd or ban a nerd
 # good nerd's hosts (array)
@@ -33,8 +33,8 @@ ADMIN="181.191.143.0/32"
 # )
 
 # Define ports that shall be serving the outside world
-SSH="44555"
-URT="27960,27961,27962,27963,27964"
+SSH="xxx"
+URT="xxx,xxx,xxx,xxx,xxx"
 #TCP_SERVICES="xxx,xxx,xxx"
 #UDP_SERVICES="xxx,xxx,xxx"
 
@@ -144,10 +144,10 @@ iptables --append udp_outbound --protocol udp --jump ACCEPT --match comment --co
 #
 
 # Add nerds to blacklist if they send packets to not listening TCP ports
-iptables --append tcp_inbound --protocol tcp --source 0/0 --match multiport ! --destination-ports "$SSH" --jump SET --add-set blacklist src --match comment --comment "* NONSSH *"
+iptables --append tcp_inbound --protocol tcp --source 0/0 --destination-port "$SSH" --jump SET --add-set blacklist src --match comment --comment "* NONSSH *"
 
 # Allow thyself to connect SSH
-iptables --append tcp_inbound --protocol tcp --source "$ADMIN" --match multiport --destination-ports "$SSH" --jump ACCEPT --match comment --comment "* ACCEPT SSH *"
+iptables --append tcp_inbound --protocol tcp --source "$ADMIN" --destination-port "$SSH" --jump ACCEPT --match comment --comment "* ACCEPT SSH *"
 
 # Return if not matched
 iptables --append tcp_inbound --protocol tcp --jump RETURN --match comment --comment "* RETURN *"
@@ -185,7 +185,10 @@ iptables --append INPUT --protocol icmp --jump icmp_packets
 
 # Log smart nerds that gets through all my sh!t
 iptables --append INPUT --match limit --limit 3/minute --limit-burst 3 -j LOG --log-prefix "NERD GOT THROUGH ALL MY SH!T!!!: "
-iptables --append INPUT -j DROP
+
+# Return smart nerds
+iptables --append INPUT --protocol ALL --jump RETURN --match comment --comment "* RETURN *"
+
 # Save settings
 #$(which ipset) save > /home/chuck/ipset/ipset.restore
 $(which iptables-save) > /home/chuck/iptables_saved/firegual.rules
