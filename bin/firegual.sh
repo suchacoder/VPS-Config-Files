@@ -15,7 +15,7 @@ IPTABLES=$(which iptables)
 IPSET=$(which ipset)
 
 # Define sysadmin's IP
-ADMIN="xxx.xxx.xxx"
+ADMIN="xxx.xxx.xxx.xxx"
 
 # In case you wanna whitelist a nerd or ban a nerd
 # good nerd's hosts (array)
@@ -71,6 +71,8 @@ echo " * creating TCP inbound"
 iptables --new-chain tcp_inbound
 echo " * creating TCP outbound"
 iptables --new-chain tcp_outbound
+echo " * creating smart nerds catching LOG chain"
+iptables --new-chain z_smart_nerds
 
 #
 # bad_packets chain
@@ -144,7 +146,7 @@ iptables --append udp_outbound --protocol udp --jump ACCEPT --match comment --co
 #
 
 # Add nerds to blacklist if they send packets to not listening TCP ports
-iptables --append tcp_inbound --protocol tcp --source 0/0 --destination-port "$SSH" --jump SET --add-set blacklist src --match comment --comment "* NONSSH *"
+iptables --append tcp_inbound --protocol tcp --source 0/0 --match multiport ! --destination-ports "$SSH" --jump SET --add-set blacklist src --match comment --comment "* NONSSH *"
 
 # Allow thyself to connect SSH
 iptables --append tcp_inbound --protocol tcp --source "$ADMIN" --destination-port "$SSH" --jump ACCEPT --match comment --comment "* ACCEPT SSH *"
@@ -184,10 +186,7 @@ iptables --append INPUT --protocol udp --jump udp_inbound
 iptables --append INPUT --protocol icmp --jump icmp_packets
 
 # Log smart nerds that gets through all my sh!t
-iptables --append INPUT --match limit --limit 3/minute --limit-burst 3 -j LOG --log-prefix "NERD GOT THROUGH ALL MY SH!T!!!: "
-
-# Return smart nerds
-iptables --append INPUT --protocol ALL --jump RETURN --match comment --comment "* RETURN *"
+iptables --append z_smart_nerds --match limit --limit 3/minute --limit-burst 3 -j LOG --log-prefix "NERD GOT THROUGH ALL MY SH!T!!!: "
 
 # Save settings
 #$(which ipset) save > /home/chuck/ipset/ipset.restore
