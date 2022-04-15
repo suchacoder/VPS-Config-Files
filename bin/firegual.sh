@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# This is my personal mofuken firegual that i ran onn UrT server (game server)
+# This is my personal mofuken firegual that i run on UrT servers (game servers)
 # I heavily rely on IPset and settled that monster up so that if a nerd drops
-# a single packet that ain't goin' to an open port, the nerd gets wreked on ight
+# a single packet that ain't goin' to an open port, the nerd gets wreked onsight
 
 # Are you root ?
 if [ $((UID)) != 0 ]; then
@@ -11,26 +11,11 @@ if [ $((UID)) != 0 ]; then
 fi
 
 # Location of executables
-IPTABLES=$(which iptables)
-IPSET=$(which ipset)
+#IPTABLES=$(which iptables)
+#IPSET=$(which ipset)
 
 # Define sysadmin's IP
 ADMIN="xxx.xxx.xxx.xxx"
-
-# In case you wanna whitelist a nerd or ban a nerd
-# good nerd's hosts (array)
-# ALLOW_HOSTS=(
-#       "xxx.xxx.xxx.xxx"
-#       "xxx.xxx.xxx.xxx"
-#       "xxx.xxx.xxx.xxx"
-# )
-
-# ban list unconditional discard list (array)
-# DENY_HOSTS=(
-#       "xxx.xxx.xxx.xxx"
-#       "xxx.xxx.xxx.xxx"
-#       "xxx.xxx.xxx.xxx"
-# )
 
 # Define ports that shall be serving the outside world
 SSH="xxx"
@@ -54,7 +39,7 @@ ipset restore -! < /home/chuck/ipset/ipset.restore
 # With this rule mofuken nerds gonna see the devil on earth
 # This will ban nerds as soon as the packets enters the network
 echo " * Dropping malicious nerds from IPSet's blacklist"
-iptables --table raw --append PREROUTING -i eth0 --protocol ALL --match set --match-set blacklist src --jump DROP
+iptables --table raw --append PREROUTING --protocol ALL --match set --match-set blacklist src --jump DROP
 
 # Create chains to reduce the number of rules each packet must traverse
 echo " * creating bad packet chain"
@@ -126,10 +111,10 @@ iptables --append icmp_packets --protocol icmp --jump RETURN --match comment --c
 #
 
 # Add nerds to blacklist if they send packets to not listening UDP ports
-iptables --append udp_inbound --protocol udp --source 0/0 --match multiport ! --destination-ports "$URT" --jump SET --add-set blacklist src --match comment --comment "* NONURT *"
+iptables --append udp_inbound --in-interface eth0 --protocol udp --source 0/0 --match multiport ! --destination-ports "$URT" --jump SET --add-set blacklist src --match comment --comment "* NONURT *"
 
 # Accept UrT server connections
-iptables --append udp_inbound --protocol udp --match multiport --destination-ports "$URT" --jump ACCEPT --match comment --comment "* ACCEPT URT *"
+iptables --append udp_inbound --in-interface eth0 --protocol udp --match multiport --destination-ports "$URT" --jump ACCEPT --match comment --comment "* ACCEPT URT *"
 
 # Return if not matched
 iptables --append udp_inbound --protocol udp --jump RETURN --match comment --comment "* RETURN *"
@@ -139,17 +124,17 @@ iptables --append udp_inbound --protocol udp --jump RETURN --match comment --com
 #
 
 # Allow outgoin UDP packets
-iptables --append udp_outbound --protocol udp --jump ACCEPT --match comment --comment "* ALLOW UDP OUT *"
+iptables --append udp_outbound --out-interface eth0 --protocol udp --jump ACCEPT --match comment --comment "* ALLOW UDP OUT *"
 
 #
 # tcp_inbound chain
 #
 
 # Add nerds to blacklist if they send packets to not listening TCP ports
-iptables --append tcp_inbound --protocol tcp --source 0/0 --match multiport ! --destination-ports "$SSH" --jump SET --add-set blacklist src --match comment --comment "* NONSSH *"
+iptables --append tcp_inbound --in-interface eth0 --protocol tcp --source 0/0 --match multiport ! --destination-ports "$SSH" --jump SET --add-set blacklist src --match comment --comment "* NONSSH *"
 
 # Allow thyself to connect SSH
-iptables --append tcp_inbound --protocol tcp --source "$ADMIN" --destination-port "$SSH" --jump ACCEPT --match comment --comment "* ACCEPT SSH *"
+iptables --append tcp_inbound --in-interface eth0 --protocol tcp --source "$ADMIN" --destination-port "$SSH" --jump ACCEPT --match comment --comment "* ACCEPT SSH *"
 
 # Return if not matched
 iptables --append tcp_inbound --protocol tcp --jump RETURN --match comment --comment "* RETURN *"
@@ -159,7 +144,7 @@ iptables --append tcp_inbound --protocol tcp --jump RETURN --match comment --com
 #
 
 # Allow outgoin TCP packets
-iptables --append tcp_outbound --protocol tcp --jump ACCEPT --match comment --comment "* ALLOW TCP OUT  *"
+iptables --append tcp_outbound --out-interface eth0 --protocol tcp --jump ACCEPT --match comment --comment "* ALLOW TCP OUT  *"
 
 ###############
 # INPUT Chain #
@@ -181,9 +166,9 @@ iptables --append INPUT --protocol tcp --match conntrack --ctstate ESTABLISHED,R
 iptables --append INPUT --match set --match-set whitelist src -j ACCEPT --match comment --comment "* ACCEPT NERDS *"
 
 # Route the rest of the packets
-iptables --append INPUT --protocol tcp --jump tcp_inbound
-iptables --append INPUT --protocol udp --jump udp_inbound
-iptables --append INPUT --protocol icmp --jump icmp_packets
+iptables --append INPUT --in-interface eth0 --protocol tcp --jump tcp_inbound
+iptables --append INPUT --in-interface eth0 --protocol udp --jump udp_inbound
+iptables --append INPUT --in-interface eth0 --protocol icmp --jump icmp_packets
 
 # Log smart nerds that gets through all my sh!t
 iptables --append z_smart_nerds --match limit --limit 3/minute --limit-burst 3 -j LOG --log-prefix "NERD GOT THROUGH ALL MY SH!T!!!: "
@@ -193,4 +178,4 @@ iptables --append z_smart_nerds --match limit --limit 3/minute --limit-burst 3 -
 $(which iptables-save) > /home/chuck/iptables_saved/firegual.rules
 
 ## Uncomment to test new firewall rules
-#sleep 360 && sh -c /home/chuck/bin/killgual.sh
+#sleep 360 && sh -c /home/chuck/bin/killgual.sh 
