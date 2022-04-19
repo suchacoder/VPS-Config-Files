@@ -16,7 +16,7 @@ fi
 #IPSET=$(which ipset)
 
 # Define sysadmin's IP
-ADMIN="xxx.xxx.xxx.x"
+ADMIN="xxx.xxx.xxx.xxx"
 
 # Define ports that shall be serving the outside world
 SSH="xxx"
@@ -77,6 +77,8 @@ iptables --append bad_tcp_packets --in-interface eth0 --protocol tcp ! --syn --m
 iptables --append bad_tcp_packets --in-interface eth0 --protocol tcp ! --syn --match conntrack --ctstate NEW --jump DROP --match comment --comment "* NON SYN *"
 
 # Stealth scans
+iptables --append bad_tcp_packets --protocol tcp --tcp-flags SYN,FIN SYN,FIN --jump DROP                                 --match comment --comment "* STEALTH *"
+iptables --append bad_tcp_packets --protocol tcp --tcp-flags SYN,RST SYN,RST --jump DROP                                 --match comment --comment "* STEALTH *"
 iptables --append bad_tcp_packets --protocol tcp --tcp-flags ALL NONE --jump DROP                                        --match comment --comment "* STEALTH *"
 iptables --append bad_tcp_packets --protocol tcp --tcp-flags ALL ALL --jump DROP                                         --match comment --comment "* STEALTH *"
 iptables --append bad_tcp_packets --protocol tcp --tcp-flags ALL FIN,URG,PSH --jump DROP                                 --match comment --comment "* STEALTH *"
