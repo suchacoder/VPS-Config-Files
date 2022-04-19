@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
 # This is my personal mofuken firegual that i run on UrT servers (game servers)
-# I heavily rely on IPset and settled that monster up so that if a nerd drops
-# a single packet that ain't goin' to an open port, the nerd gets wreked on sight
+# I heavily rely on IPset and settled that monster up so that if a nerd drops a single packet with bad intentions, the nerd gets wreked on sight
+# Remember to whitelist your DNS resolvers @ /etc/resolv.conf it's VPS related # to do so type: 'sudo ipset add whitelist xxx.xxx.xxx.xxx'  <--- IPs @ /etc/resolv.conf
+# and add in da INPUT chain after 'STATEFUL': iptables --append INPUT --in-interface eth0 --protocol udp --source 200.9.155.111,200.9.155.112 --source-port 53 -j ACCEPT
 
 # Are you root ?
 if [ $((UID)) != 0 ]; then
@@ -15,7 +16,7 @@ fi
 #IPSET=$(which ipset)
 
 # Define sysadmin's IP
-ADMIN="xxx.xxx.xxx.xxx"
+ADMIN="xxx.xxx.xxx.x"
 
 # Define ports that shall be serving the outside world
 SSH="xxx"
@@ -63,8 +64,7 @@ iptables --new-chain z_smart_nerds
 # bad_packets chain
 #
 
-# Blacklist nerds that sends INVALID packets and drop them
-iptables --append bad_packets --protocol ALL --match conntrack --ctstate INVALID --jump SET --add-set blacklist src
+# Drop INVALID packets
 iptables --append bad_packets --protocol ALL --match conntrack --ctstate INVALID --jump DROP --match comment --comment "* INVALID *"
 
 #
@@ -72,8 +72,9 @@ iptables --append bad_packets --protocol ALL --match conntrack --ctstate INVALID
 #
 
 # All TCP sessions should begin with SYN, if not add them nerds to blacklist
+iptables --append bad_tcp_packets --in-interface eth0 --protocol tcp ! --syn --match conntrack --ctstate NEW --match limit --limit 3/minute --limit-burst 3 --jump LOG --log-prefix "NON SYN LOG: "
 iptables --append bad_tcp_packets --in-interface eth0 --protocol tcp ! --syn --match conntrack --ctstate NEW --jump SET --add-set blacklist src
-iptables --append bad_tcp_packets --in-interface eth0 --protocol tcp ! --syn --match conntrack --ctstate NEW --jump DROP --match comment --comment "* NONSYN *"
+iptables --append bad_tcp_packets --in-interface eth0 --protocol tcp ! --syn --match conntrack --ctstate NEW --jump DROP --match comment --comment "* NON SYN *"
 
 # Stealth scans
 iptables --append bad_tcp_packets --protocol tcp --tcp-flags ALL NONE --jump DROP                                        --match comment --comment "* STEALTH *"
@@ -89,13 +90,15 @@ iptables --append bad_tcp_packets --protocol tcp --tcp-flags FIN,RST FIN,RST --j
 # icmp_packets chain
 #
 
-# Stopping fragmented ICMP packets and addin' 'em nerds to blacklist
+# LOG and stop fragmented ICMP packets, and add them nerds to blacklist
+iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --match limit --limit 3/minute --limit-burst 3 --jump LOG --log-prefix "FRAGMENTED LOG: "
 iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --jump SET --add-set blacklist src
 iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --jump DROP --match comment --comment "* FRAGMENTED ICMP *"
 
-# If a malicious nerd send a non-echo request ICMP packet get in da black mofugga list
-iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type echo-request --jump SET --add-set blacklist src
-iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type echo-request --jump DROP --match comment --comment "* NON ECHO REQUEST *"
+# LOG malicious nerds sending a non-echo request/replay ICMP packet, and add them in da black mofugga list
+iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type 0/8 --match limit --limit 3/minute --limit-burst 3 --jump LOG --log-prefix "ECHO REQUEST LOG: "
+iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type 0/8 --jump SET --add-set blacklist src
+iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type 0/8 --jump DROP --match comment --comment "* NON ECHO REQUEST *"
 
 # Limit echo requests
 iptables --append icmp_packets --protocol icmp --match limit --limit 1/second --jump ACCEPT
@@ -158,6 +161,9 @@ iptables --append INPUT --protocol ALL --jump bad_packets --match comment --comm
 
 # Accept established connections
 iptables --append INPUT --protocol tcp --match conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT --match comment --comment "* STATEFULL *"
+
+# Allow VPS's DNS resolver
+iptables --append INPUT --in-interface eth0 --protocol udp --source 200.9.155.111,200.9.155.112 --source-port 53 -j ACCEPT --match comment --comment "* DNS *"
 
 # Allow whitelisted nerds
 iptables --append INPUT --match set --match-set whitelist src -j ACCEPT --match comment --comment "* ACCEPT NERDS *"
