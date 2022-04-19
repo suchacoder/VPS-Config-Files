@@ -4,6 +4,7 @@
 # I heavily rely on IPset and settled that monster up so that if a nerd drops a single packet with bad intentions, the nerd gets wreked on sight
 # Remember to whitelist your DNS resolvers @ /etc/resolv.conf it's VPS related # to do so type: 'sudo ipset add whitelist xxx.xxx.xxx.xxx'  <--- IPs @ /etc/resolv.conf
 # and add in da INPUT chain after 'STATEFUL': iptables --append INPUT --in-interface eth0 --protocol udp --source 200.9.155.111,200.9.155.112 --source-port 53 -j ACCEPT
+# Also, allow Canonical's NTP: iptables --append INPUT --in-interface eth0 --protocol udp --source 91.189.89.199,91.189.89.198 --source-port 123 -j ACCEPT
 
 # Are you root ?
 if [ $((UID)) != 0 ]; then
@@ -16,11 +17,11 @@ fi
 #IPSET=$(which ipset)
 
 # Define sysadmin's IP
-ADMIN="xxx.xxx.xxx.xxx"
+ADMIN="181.191.143.18"
 
 # Define ports that shall be serving the outside world
-SSH="xxx"
-URT="xxx,xxx,xxx,xxx,xxx"
+SSH="44555"
+URT="27960,27961,27962,27963,27964"
 #TCP_SERVICES="xxx,xxx,xxx"
 #UDP_SERVICES="xxx,xxx,xxx"
 
@@ -97,9 +98,8 @@ iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --
 iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --jump SET --add-set blacklist src
 iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --jump DROP --match comment --comment "* FRAGMENTED ICMP *"
 
-# LOG malicious nerds sending a non-echo request/replay ICMP packet, and add them in da black mofugga list
+# LOG malicious nerds sending a non-echo request/replay ICMP packet, cannot add 'em to blacklist cuz sometimes UrT sends ICMP type 3 :(
 iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type 0/8 --match limit --limit 3/minute --limit-burst 3 --jump LOG --log-prefix "ECHO REQUEST LOG: "
-iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type 0/8 --jump SET --add-set blacklist src
 iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type 0/8 --jump DROP --match comment --comment "* NON ECHO REQUEST *"
 
 # Limit echo requests
@@ -165,7 +165,10 @@ iptables --append INPUT --protocol ALL --jump bad_packets --match comment --comm
 iptables --append INPUT --protocol tcp --match conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT --match comment --comment "* STATEFULL *"
 
 # Allow VPS's DNS resolver
-iptables --append INPUT --in-interface eth0 --protocol udp --source 200.9.155.111,200.9.155.112 --source-port 53 -j ACCEPT --match comment --comment "* DNS *"
+iptables --append INPUT --in-interface eth0 --protocol udp --source 200.9.155.111,200.9.155.112 --source-port 53 -j ACCEPT --match comment --comment "* DNS INC *"
+
+# Allow canonical NTP
+iptables --append INPUT --in-interface eth0 --protocol udp --source 91.189.89.199,91.189.89.198 --source-port 123 -j ACCEPT --match comment --comment "* NTP INC *"
 
 # Allow whitelisted nerds
 iptables --append INPUT --match set --match-set whitelist src -j ACCEPT --match comment --comment "* ACCEPT NERDS *"
