@@ -2,11 +2,11 @@
 
 # This is my personal mofuken firegual that i run on UrT servers (game servers)
 # I heavily rely on IPset and settled that monster up so that if a nerd drops
-# a single packet that ain't goin' to an open port, the nerd gets wreked onsight
+# a single packet that ain't goin' to an open port, the nerd gets wreked on sight
 
 # Are you root ?
 if [ $((UID)) != 0 ]; then
-  echo -e "$RED ERROR: You need to run this script as ROOT user $NO_COLOR" >&2
+  echo -e "ERROR: You need to run this script as ROOT user" >&2
   exit 2
 fi
 
@@ -15,11 +15,11 @@ fi
 #IPSET=$(which ipset)
 
 # Define sysadmin's IP
-ADMIN="xxx.xxx.xxx.xxx"
+ADMIN="181.191.143.3"
 
 # Define ports that shall be serving the outside world
-SSH="xxx"
-URT="xxx,xxx,xxx,xxx,xxx"
+SSH="44555"
+URT="27960,27961,27962,27963,27964"
 #TCP_SERVICES="xxx,xxx,xxx"
 #UDP_SERVICES="xxx,xxx,xxx"
 
@@ -35,7 +35,7 @@ ipset create whitelist hash:ip
 ipset create blacklist hash:net family inet hashsize 16384 maxelem 500000
 ipset restore -! < /home/chuck/ipset/ipset.restore
 
-# Ok... lets add some bad nerds to IPSet's blacklist
+# Ok... lets add some malicious nerds to IPSet's blacklist
 # With this rule mofuken nerds gonna see the devil on earth
 # This will ban nerds as soon as the packets enters the network
 echo " * Dropping malicious nerds from IPSet's blacklist"
@@ -63,20 +63,18 @@ iptables --new-chain z_smart_nerds
 # bad_packets chain
 #
 
-# Drop INVALID packets
+# Blacklist nerds that sends INVALID packets and drop them
+iptables --append bad_packets --protocol ALL --match conntrack --ctstate INVALID --jump SET --add-set blacklist src
 iptables --append bad_packets --protocol ALL --match conntrack --ctstate INVALID --jump DROP --match comment --comment "* INVALID *"
 
 #
 # bad_tcp_packets chain
 #
 
-# All TCP sessions should begin with SYN
-iptables --append bad_tcp_packets --protocol tcp ! --syn --match conntrack --ctstate NEW --jump DROP
+# All TCP sessions should begin with SYN, if not add them nerds to blacklist
+iptables --append bad_tcp_packets --protocol tcp ! --syn --match conntrack --ctstate NEW --jump DROP                     --match comment --comment "* NONSYN *"
 
 # Stealth scans
-iptables --append bad_tcp_packets --protocol tcp --tcp-flags SYN,ACK SYN,ACK --match conntrack --ctstate NEW --jump DROP --match comment --comment "* STEALTH *"
-iptables --append bad_tcp_packets --protocol tcp --tcp-flags SYN,FIN SYN,FIN --jump DROP                                 --match comment --comment "* STEALTH *"
-iptables --append bad_tcp_packets --protocol tcp --tcp-flags SYN,RST SYN,RST --jump DROP                                 --match comment --comment "* STEALTH *"
 iptables --append bad_tcp_packets --protocol tcp --tcp-flags ALL NONE --jump DROP                                        --match comment --comment "* STEALTH *"
 iptables --append bad_tcp_packets --protocol tcp --tcp-flags ALL ALL --jump DROP                                         --match comment --comment "* STEALTH *"
 iptables --append bad_tcp_packets --protocol tcp --tcp-flags ALL FIN,URG,PSH --jump DROP                                 --match comment --comment "* STEALTH *"
@@ -90,18 +88,14 @@ iptables --append bad_tcp_packets --protocol tcp --tcp-flags FIN,RST FIN,RST --j
 # icmp_packets chain
 #
 
-# Stopping fragmented ICMP packets
-iptables --append icmp_packets --protocol icmp --fragment --jump DROP --match comment --comment "* FRAGMENTED ICMP *"
+# Stopping fragmented ICMP packets and addin' 'em to blacklist
+iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --jump DROP --match comment --comment "* FRAGMENTED ICMP *"
 
-# Stopping smurf attacks
-iptables --append icmp_packets --protocol icmp --match icmp --icmp-type address-mask-request --jump DROP --match comment --comment "* SMURF ICMP *"
-iptables --append icmp_packets --protocol icmp --match icmp --icmp-type timestamp-request --jump DROP --match comment --comment "* SMURF ICMP *"
+# Non echo request ICMP packets
+iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type echo-request --jump DROP
 
-# Time Exceeded
-iptables --append icmp_packets --protocol icmp --match icmp --icmp-type time-exceeded --jump ACCEPT
-
-# Echo Request
-iptables --append icmp_packets --protocol icmp --match icmp --icmp-type echo-request --match limit --limit 1/second --jump ACCEPT
+# Limit echo requests
+iptables --append icmp_packets --protocol icmp --match limit --limit 1/second --jump ACCEPT
 
 # Return if not matched
 iptables --append icmp_packets --protocol icmp --jump RETURN --match comment --comment "* RETURN *"
@@ -110,7 +104,7 @@ iptables --append icmp_packets --protocol icmp --jump RETURN --match comment --c
 # udp_inbound chain
 #
 
-# Add nerds to blacklist if they send packets to not listening UDP ports
+# Add malicious nerds to blacklist if they send packets to not listening UDP ports
 iptables --append udp_inbound --in-interface eth0 --protocol udp --source 0/0 --match multiport ! --destination-ports "$URT" --jump SET --add-set blacklist src --match comment --comment "* NONURT *"
 
 # Accept UrT server connections
@@ -123,14 +117,14 @@ iptables --append udp_inbound --protocol udp --jump RETURN --match comment --com
 # udp_outbound chain
 #
 
-# Allow outgoin UDP packets
+# Allow outgoin' UDP packets
 iptables --append udp_outbound --out-interface eth0 --protocol udp --jump ACCEPT --match comment --comment "* ALLOW UDP OUT *"
 
 #
 # tcp_inbound chain
 #
 
-# Add nerds to blacklist if they send packets to not listening TCP ports
+# Add malicious nerds to blacklist if they send packets to not listening TCP ports
 iptables --append tcp_inbound --in-interface eth0 --protocol tcp --source 0/0 --match multiport ! --destination-ports "$SSH" --jump SET --add-set blacklist src --match comment --comment "* NONSSH *"
 
 # Allow thyself to connect SSH
@@ -153,7 +147,7 @@ iptables --append tcp_outbound --out-interface eth0 --protocol tcp --jump ACCEPT
 # Allow localhost
 iptables --append INPUT --in-interface lo --jump ACCEPT --match comment --comment "* ALLOW lo *"
 
-# DROP nerds sending packets as if they come from 'lo'
+# DROP malicious nerds sending packets as if they come from 'lo'
 iptables --append INPUT -s 127.0.0.0/8 ! --in-interface lo --jump DROP --match comment --comment "* DROP lo *"
 
 # Send all inc to be inspected by the 'bad_packets' chain
@@ -178,4 +172,4 @@ iptables --append z_smart_nerds --match limit --limit 3/minute --limit-burst 3 -
 $(which iptables-save) > /home/chuck/iptables_saved/firegual.rules
 
 ## Uncomment to test new firewall rules
-#sleep 360 && sh -c /home/chuck/bin/killgual.sh 
+#sleep 360 && sh -c /home/chuck/bin/killgual.sh
