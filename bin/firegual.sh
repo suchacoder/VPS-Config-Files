@@ -15,11 +15,11 @@ fi
 #IPSET=$(which ipset)
 
 # Define sysadmin's IP
-ADMIN="181.191.143.3"
+ADMIN="xxx.xxx.xxx.xxx"
 
 # Define ports that shall be serving the outside world
-SSH="44555"
-URT="27960,27961,27962,27963,27964"
+SSH="xxx"
+URT="xxx,xxx,xxx,xxx,xxx"
 #TCP_SERVICES="xxx,xxx,xxx"
 #UDP_SERVICES="xxx,xxx,xxx"
 
@@ -72,7 +72,8 @@ iptables --append bad_packets --protocol ALL --match conntrack --ctstate INVALID
 #
 
 # All TCP sessions should begin with SYN, if not add them nerds to blacklist
-iptables --append bad_tcp_packets --protocol tcp ! --syn --match conntrack --ctstate NEW --jump DROP                     --match comment --comment "* NONSYN *"
+iptables --append bad_tcp_packets --in-interface eth0 --protocol tcp ! --syn --match conntrack --ctstate NEW --jump SET --add-set blacklist src
+iptables --append bad_tcp_packets --in-interface eth0 --protocol tcp ! --syn --match conntrack --ctstate NEW --jump DROP --match comment --comment "* NONSYN *"
 
 # Stealth scans
 iptables --append bad_tcp_packets --protocol tcp --tcp-flags ALL NONE --jump DROP                                        --match comment --comment "* STEALTH *"
@@ -88,11 +89,13 @@ iptables --append bad_tcp_packets --protocol tcp --tcp-flags FIN,RST FIN,RST --j
 # icmp_packets chain
 #
 
-# Stopping fragmented ICMP packets and addin' 'em to blacklist
+# Stopping fragmented ICMP packets and addin' 'em nerds to blacklist
+iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --jump SET --add-set blacklist src
 iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --jump DROP --match comment --comment "* FRAGMENTED ICMP *"
 
-# Non echo request ICMP packets
-iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type echo-request --jump DROP
+# If a malicious nerd send a non-echo request ICMP packet get in da black mofugga list
+iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type echo-request --jump SET --add-set blacklist src
+iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type echo-request --jump DROP --match comment --comment "* NON ECHO REQUEST *"
 
 # Limit echo requests
 iptables --append icmp_packets --protocol icmp --match limit --limit 1/second --jump ACCEPT
@@ -172,4 +175,4 @@ iptables --append z_smart_nerds --match limit --limit 3/minute --limit-burst 3 -
 $(which iptables-save) > /home/chuck/iptables_saved/firegual.rules
 
 ## Uncomment to test new firewall rules
-#sleep 360 && sh -c /home/chuck/bin/killgual.sh
+#echo " * Rule tester = [ON]  'Press Ctrl + C' if everything's Ok" ; sleep 15 && sh -c /home/chuck/bin/killgual.sh
