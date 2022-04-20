@@ -5,6 +5,7 @@
 # Remember to whitelist your DNS resolvers @ /etc/resolv.conf it's VPS related # to do so type: 'sudo ipset add whitelist xxx.xxx.xxx.xxx'  <--- IPs @ /etc/resolv.conf
 # and add in da INPUT chain after 'STATEFUL': iptables --append INPUT --in-interface eth0 --protocol udp --source 200.9.155.111,200.9.155.112 --source-port 53 -j ACCEPT
 # Also, allow Canonical's NTP: iptables --append INPUT --in-interface eth0 --protocol udp --source 91.189.89.199,91.189.89.198 --source-port 123 -j ACCEPT
+# INFO: UrT master server: 94.23.196.186:27900 198.20.216.53:27900 168.119.32.223:27900
 
 # Are you root ?
 if [ $((UID)) != 0 ]; then
