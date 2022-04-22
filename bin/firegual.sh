@@ -18,7 +18,7 @@ fi
 #IPSET=$(which ipset)
 
 # Define sysadmin's IP
-ADMIN="181.191.143.18"
+ADMIN="181.191.143.179"
 
 # Define ports that shall be serving the outside world
 SSH="44555"
@@ -31,6 +31,11 @@ echo " * setting default policies"
 iptables --policy INPUT DROP
 iptables --policy OUTPUT ACCEPT
 iptables --policy FORWARD DROP
+
+# Check if ipset is installed, if not, install it
+if ! [ -x "$(command -v ipset)" ]; then
+  echo "IPSet ain't installed, installing it now..." && apt install ipset -y
+fi
 
 # Create IPSet white and black lists, and restore database
 echo " * creating custom rule chains and IPSet"
@@ -100,11 +105,11 @@ iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --
 iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --jump DROP --match comment --comment "* FRAGMENTED ICMP *"
 
 # LOG malicious nerds sending a non-echo request/replay ICMP packet, cannot add 'em to blacklist cuz sometimes UrT sends ICMP type 3 :(
-iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type 0/8 --match limit --limit 3/minute --limit-burst 3 --jump LOG --log-prefix "ECHO REQUEST LOG: "
+iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type 0/8 --match limit --limit 3/minute --limit-burst 3 --jump LOG --log-prefix "NON ECHO REQUEST: "
 iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type 0/8 --jump DROP --match comment --comment "* NON ECHO REQUEST *"
 
 # Limit echo requests
-iptables --append icmp_packets --protocol icmp --match limit --limit 1/second --jump ACCEPT
+iptables --append icmp_packets --protocol icmp --icmp-type 0/8 --match limit --limit 1/second --jump ACCEPT
 
 # Return if not matched
 iptables --append icmp_packets --protocol icmp --jump RETURN --match comment --comment "* RETURN *"
@@ -183,7 +188,18 @@ iptables --append INPUT --in-interface eth0 --protocol icmp --jump icmp_packets
 iptables --append z_smart_nerds --match limit --limit 3/minute --limit-burst 3 -j LOG --log-prefix "NERD GOT THROUGH ALL MY SH!T!!!: "
 
 # Save settings
+# Check if direcotry '/home/chuck/ipset/' exists, if not create it
+if [ ! -d "/home/chuck/ipset/" ]; then
+  echo "'ipset' dir ain't exists, creating it now..." && mkdir "/home/chuck/ipset/"
+fi
+
 #$(which ipset) save > /home/chuck/ipset/ipset.restore
+
+# Check if direcotry '/home/chuck/iptables_saved/' exists, if not create it
+if [ ! -d "/home/chuck/iptables_saved/" ]; then
+  "'iptables_saved' dir ain't exists, creating it now..." && mkdir "/home/chuck/iptables_saved/"
+fi
+
 $(which iptables-save) > /home/chuck/iptables_saved/firegual.rules
 
 ## Uncomment to test new firewall rules
