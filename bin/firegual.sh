@@ -2,10 +2,10 @@
 
 # This is my personal mofuken firegual that i run on UrT servers (game servers)
 # I heavily rely on IPset and settled that monster up so that if a nerd drops a single packet with bad intentions, the nerd gets wreked on sight
-# Remember to whitelist your DNS resolvers @ /etc/resolv.conf it's VPS related # to do so type: 'sudo ipset add whitelist xxx.xxx.xxx.xxx'  <--- IPs @ /etc/resolv.conf
+# Remember to ACCEPT and/or whitelist your DNS resolvers @ /etc/resolv.conf it's VPS related # to do so type: 'sudo ipset add whitelist xxx.xxx.xxx.xxx'  <--- IPs @ /etc/resolv.conf
 # and add in da INPUT chain after 'STATEFUL': iptables --append INPUT --in-interface eth0 --protocol udp --source 200.9.155.111,200.9.155.112 --source-port 53 -j ACCEPT
 # Also, allow Canonical's NTP: iptables --append INPUT --in-interface eth0 --protocol udp --source 91.189.89.199,91.189.89.198 --source-port 123 -j ACCEPT
-# INFO: UrT master server: 94.23.196.186:27900 198.20.216.53:27900 168.119.32.223:27900
+# INFO: UrT master servers: 94.23.196.186:27900 198.20.216.53:27900 168.119.32.223:27900
 
 # Are you root ?
 if [ $((UID)) != 0 ]; then
@@ -18,13 +18,13 @@ fi
 #IPSET=$(which ipset)
 
 # Define sysadmin's IP
-ADMIN="181.191.143.55"
+ADMIN="xxx.xxx.xxx.xxx"
 
 # UrT Master Servers
 URTMASTER="168.119.32.223,94.23.196.186,198.20.216.53"
 
 # Define ports that shall be serving the outside world
-SSH="44555"
+SSH="xxx"
 URT="27960,27961,27962,27963,27964"
 #TCP_SERVICES="xxx,xxx,xxx"
 #UDP_SERVICES="xxx,xxx,xxx"
@@ -46,7 +46,7 @@ ipset create whitelist hash:ip
 ipset create blacklist hash:net family inet hashsize 16384 maxelem 500000
 ipset restore -! < /home/chuck/ipset/ipset.restore
 
-# Ok... lets add some malicious nerds to IPSet's blacklist
+# Ok... lets block some malicious nerds from IPSet's blacklist
 # With this rule mofuken nerds gonna see the devil on earth
 # This will ban nerds as soon as the packets enters the network
 echo " * Dropping malicious nerds from IPSet's blacklist"
@@ -104,18 +104,18 @@ iptables --append bad_tcp_packets --protocol tcp --tcp-flags FIN,RST FIN,RST --j
 #
 
 # Loggin UDP packets
-#iptables --append udp_inbound --in-interface eth0 --protocol udp --jump LOG --log-prefix "ALL UDP: " --match comment --comment "* UDP ALL *"
+#iptables --append udp_inbound --in-interface eth0 --protocol udp --match limit --limit 3/minute --limit-burst 3 --jump LOG --log-prefix "ALL UDP: " --match comment --comment "* UDP ALL *"
 
 # UrT pickup bot
 iptables --append udp_inbound --in-interface eth0 --protocol udp --source 151.80.32.157 --match multiport --destination-ports "$URT" --jump ACCEPT --match comment --comment "* UrT Pickup Bot *"
 
 # UrT master servers
-iptables --append udp_inbound --in-interface eth0 --protocol udp --source "$URTMASTER" --match multiport --destination-ports "$URT" --jump ACCEPT --match comment --comment "* UrT Master Server *"
+iptables --append udp_inbound --in-interface eth0 --protocol udp --source "$URTMASTER" --match multiport --destination-ports "$URT" --jump ACCEPT --match comment --comment "* UrT Master Servers *"
 
 
 # Add malicious nerds to blacklist if they send packets to not listening UDP ports
-iptables --append udp_inbound --in-interface eth0 --protocol udp --source 0/0 --match multiport ! --destination-ports "$URT" --jump LOG --log-prefix "UDP SOLI LOG: "
-iptables --append udp_inbound --in-interface eth0 --protocol udp --source 0/0 --match multiport ! --destination-ports "$URT" --jump SET --add-set blacklist src --match comment --comment "* NONURT *"
+iptables --append udp_inbound --in-interface eth0 --protocol udp --source 0/0 --match multiport ! --destination-ports "$URT" --match limit --limit 3/minute --limit-burst 3 --jump LOG --log-prefix "UDP NON URT: "
+iptables --append udp_inbound --in-interface eth0 --protocol udp --source 0/0 --match multiport ! --destination-ports "$URT" --jump SET --add-set blacklist src --match comment --comment "* NONURT BLACKLIST *"
 iptables --append udp_inbound --in-interface eth0 --protocol udp --source 0/0 --match multiport ! --destination-ports "$URT" --jump DROP --match comment --comment "* NONURT DROP *"
 
 # Accept UrT server connections
@@ -136,18 +136,18 @@ iptables --append udp_outbound --out-interface eth0 --protocol udp --jump ACCEPT
 #
 
 # Loggin TCP packets
-#iptables --append tcp_inbound --in-interface eth0 --protocol tcp --jump LOG --log-prefix "ALL TCP: " --match comment --comment "* ALL TCP *"
+#iptables --append tcp_inbound --in-interface eth0 --protocol tcp --match limit --limit 3/minute --limit-burst 3 --jump LOG --log-prefix "ALL TCP: " --match comment --comment "* ALL TCP *"
 
 # UrT pickup bot sends tcp packets to port 7 checking online server
 iptables --append tcp_inbound --in-interface eth0 --protocol tcp --source 151.80.32.157 --destination-port 7 --jump ACCEPT --match comment --comment "* UrT Pickup Bot *"
 
 # Add malicious nerds to blacklist if they send packets to not listening TCP ports
-iptables --append tcp_inbound --in-interface eth0 --protocol tcp --source 0/0 --match multiport ! --destination-ports "$SSH" --jump LOG --log-prefix "TCP SOLI LOG: "
-iptables --append tcp_inbound --in-interface eth0 --protocol tcp --source 0/0 --match multiport ! --destination-ports "$SSH" --jump SET --add-set blacklist src --match comment --comment "* NONSSH *"
+iptables --append tcp_inbound --in-interface eth0 --protocol tcp --source 0/0 --match multiport ! --destination-ports "$SSH" --jump LOG --log-prefix "TCP NON SSH: "
+iptables --append tcp_inbound --in-interface eth0 --protocol tcp --source 0/0 --match multiport ! --destination-ports "$SSH" --jump SET --add-set blacklist src --match comment --comment "* NONSSH BLACKLIST *"
 iptables --append tcp_inbound --in-interface eth0 --protocol tcp --source 0/0 --match multiport ! --destination-ports "$SSH" --jump DROP --match comment --comment "* NONSSH DROP *"
 
 # Allow thyself to connect SSH
-iptables --append tcp_inbound --in-interface eth0 --protocol tcp --source "$ADMIN" --destination-port "$SSH" --jump ACCEPT --match comment --comment "* ACCEPT SSH *"
+iptables --append tcp_inbound --in-interface eth0 --protocol tcp --source "$ADMIN" --destination-port "$SSH" --jump ACCEPT --match comment --comment "* ACCEPT ADMIN SSH *"
 
 # Return if not matched
 iptables --append tcp_inbound --protocol tcp --jump RETURN --match comment --comment "* RETURN *"
@@ -165,18 +165,18 @@ iptables --append tcp_outbound --out-interface eth0 --protocol tcp --jump ACCEPT
 
 # LOG and stop fragmented ICMP packets, and add them nerds to blacklist
 iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --match limit --limit 3/minute --limit-burst 3 --jump LOG --log-prefix "FRAGMENTED LOG: "
-iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --jump SET --add-set blacklist src
-iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --jump DROP --match comment --comment "* FRAGMENTED ICMP *"
+iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --jump SET --add-set blacklist src --match comment --comment "* FRAGMENTED ICMP BLACKLIST *"
+iptables --append icmp_packets --in-interface eth0 --protocol icmp --fragment --jump DROP --match comment --comment "* FRAGMENTED ICMP DROP *"
 
 # LOG malicious nerds sending a non-echo request/replay ICMP packet, cannot add 'em to blacklist cuz sometimes UrT sends ICMP type 3 :(
 #iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type echo-request --match limit --limit 3/minute --limit-burst 3 --jump LOG --log-prefix "NON ECHO REQUEST: "
 #iptables --append icmp_packets --in-interface eth0 --protocol icmp --match icmp ! --icmp-type echo-request --jump DROP --match comment --comment "* NON ECHO REQUEST *"
 
 # Allow inc ICMP
-iptables --append icmp_packets --in-interface eth0 --protocol icmp --jump ACCEPT
+iptables --append icmp_packets --in-interface eth0 --protocol icmp --jump ACCEPT --match comment --comment "* ACCEPT INC ICMP *"
 
 # Allow outgoing ICMP
-iptables --append icmp_packets --out-interface eth0 --protocol icmp --jump ACCEPT
+iptables --append icmp_packets --out-interface eth0 --protocol icmp --jump ACCEPT --match comment --comment "* ACCEPT OUT ICMP *"
 
 # Return if not matched
 iptables --append icmp_packets --protocol icmp --jump RETURN --match comment --comment "* RETURN *"
@@ -205,7 +205,7 @@ iptables --append INPUT --in-interface eth0 --protocol udp --source 200.9.155.11
 iptables --append INPUT --in-interface eth0 --protocol udp --source 91.189.89.199,91.189.89.198 --source-port 123 -j ACCEPT --match comment --comment "* NTP INC *"
 
 # Allow whitelisted nerds
-iptables --append INPUT --match set --match-set whitelist src -j ACCEPT --match comment --comment "* ACCEPT NERDS *"
+iptables --append INPUT --match set --match-set whitelist src -j ACCEPT --match comment --comment "* ACCEPT IPSET NERDS *"
 
 # Route the rest of the packets
 iptables --append INPUT --in-interface eth0 --protocol tcp --jump tcp_inbound
