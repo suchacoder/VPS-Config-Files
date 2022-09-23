@@ -1,1 +1,1 @@
-sudo apt install ipset ulogd2 ccze iptraf iptstate
+sudo apt install ipset ulogd2 ccze iptraf iptstate python sqlite
