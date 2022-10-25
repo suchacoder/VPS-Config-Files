@@ -1,0 +1,147 @@
+#######################################################################
+
+Multircon
+by Luigi Auriemma
+e-mail: aluigi@autistici.org
+web:    aluigi.org
+
+#######################################################################
+
+as any other tool on my website multircon works from the console so the
+first thing is just launching it (many people are blocked in this
+stage):
+
+  http://aluigi.org/about.htm#howuse
+
+Now let's go with the usage of multircon.
+The tool is composed by two parts, one specific for the remote
+administration of a server using one of the protocols supported by the
+tool and another one (which seems the most used one) for the brute
+forcing of the rcon passwords.
+
+  multircon [options] <host> <port>
+
+options are just the optional parameter that you can specify to the
+tool, they must be specified ever before the host and the port fields
+by default the tool uses the Quake 3 rcon protocol
+host is the server hostname or IP address
+port it's rcon port
+
+The following are the options:
+
+-p PASS
+by default the password is requested at runtime when you launch the
+tool, this option allows you to avoid to reinsert the keyword, useful
+for example if you want to launch a one-shot command or use the tool
+often with the same server
+
+-c CMD
+the one-shot command, in short multircon connects to the server and
+sends this command, wait the reply of the server and then exits
+
+-i
+this option is very useful, it forces the tool to request informations
+to the remote server and automatically sets the needed rcon protocol
+and continues with the execution
+
+-I
+as above but exits after having visualized the received query
+
+-f FILE
+this option specifies a file containing all the commands you want to
+send, they must be one per line. very useful for sending batch commands
+through rcon
+
+-t TYPE
+forces the usage of a specific rcon protocol of those supported by the
+tool
+
+-a
+asynchronous commands, the explanation is very simple: instead of
+waiting for the server's data after each rcon command you sends, this
+option allows you to return quickly to the input entry (where you can
+insert the next command) and the incoming server's data will be
+visualized just when it arrives in any moment 
+
+-s SEC
+sets the amount of seconds to wait after you send a command for
+returning to the input entry, this works only in synchronous mode (so
+not with -a)
+
+---
+
+Now the brute forcing part, remember to use the -i or the -t options
+above for setting the proper rcon method:
+
+-b ?
+shows a quick runtime help screen about the available brute forcing
+options
+
+-b L T
+the classical brute forcing method, L is the max length of the
+passwords you want to scan while T is the table, it's composed by the
+first and last char you want to use in the scanning
+for example if you specify -b 8 az the tool will try all the passwords
+of max 8 chars containing the chars from 'a' to 'z' while -b 8 09azAZ
+all the alphanumeric chars
+
+-B OLD
+this is the recovery option, use it if you break a scan and want to
+recover it, for example -b 8 az -B oldpass
+
+-w FILE
+the wordlist brute forcing, instead of trying any char in the chartable
+this option allows you to try all the words contained line-per-line in
+the file FILE
+
+-W OPT
+this option allows you to choose 3 types of wordlist scannings: 1 for
+trying any low and high case of each char in the password, 2 for trying
+only the low case and 3 for only the high
+
+-d MS
+amount of milliseconds to wait before reseding the new rcon password
+request, it's 500 by default since it's the minimum for Quake 3 servers.
+read below about why this amount of ms is needed
+
+---
+
+I initially wrote this tool for the Quake 3 engine and the brute
+forcing option has been added only for testing and because it didn't
+cost anything to me but there are tons of problems with it.
+The Quake 3 engine uses an anti-brute forcing mechanism which tells the
+engine to process only one rcon command each half second, and it's not
+important if a valid admin sends a valid rcon command because if it's
+arrived after another invalid command send by another IP within the
+same half-second, it will be dropped.
+
+That's the reason about why the brute forcing part of multircon is
+totatlly useless (at least for the Quake 3 engine) and also because
+there is the common problem of any brute forcing scan: the time
+
+I hate brute forcing since takes tons of resources and in the case of
+rcon brute forcing it's results are uncertain too because you will
+never receive a "invalid password" reply from the server and so you
+will never know what and how much packets have been dropped by the
+server
+
+So resuming: 500 ms limitation, normal endless time for scanning and
+uncertain results.
+
+The good thing of the 500 ms limitation is just that the problems had
+by an attacker are the same of the admin since a flooding of rcon
+commands sent within the half-second can block a valid admin which
+wants to send rcon commands.
+This is probably the best usage of the -d option and it's also the
+reason why I created a so called patch which allows to disable this
+limitation in the own Quake 3 server.
+
+---
+
+The folowing are the same examples available in the description of the
+program on my website:
+- password guessing using passwords of max 8 chars and with all the
+possible alphanumeric: multircon -i -b 8 azAZ09 SERVER PORT
+- recover an old password: multircon -i -B OLDPWD -b 8 azAZ09 SERVER PORT
+- wordlist: multircon -i -w WORDLIST.txt SERVER PORT
+- rcon DoS: multircon -i -b 10 09AZaz -d 100 SERVER PORT
